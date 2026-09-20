@@ -7,7 +7,35 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'build/coo/validation-lua'
-MSBUILD = Path(r'C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\MSBuild\Current\Bin\amd64\MSBuild.exe')
+
+
+def find_msbuild():
+    """Locate MSBuild through vswhere; any Visual Studio 18 product, including Build Tools."""
+    program_files = os.environ.get('ProgramFiles(x86)')
+    vswhere = Path(program_files) / 'Microsoft Visual Studio/Installer/vswhere.exe' if program_files else None
+
+    found = None
+    if vswhere and vswhere.is_file():
+        result = subprocess.run(
+            # -products * includes Build Tools, which vswhere skips by default.
+            [str(vswhere), '-latest', '-prerelease', '-products', '*',
+             '-requires', 'Microsoft.Component.MSBuild',
+             '-find', r'MSBuild\**\Bin\MSBuild.exe'],
+            capture_output=True, text=True)
+        lines = result.stdout.strip().splitlines()
+        # -latest already picked one installation; the first line is its primary MSBuild.
+        found = Path(lines[0]) if lines else None
+    if found:
+        # Large native data tables exceed the 32-bit compiler process heap in Debug.
+        amd64 = found.parent / 'amd64/MSBuild.exe'
+        if amd64.is_file():
+            found = amd64
+    if not found:
+        raise RuntimeError('MSBuild not found. Install Visual Studio 18 (Build Tools or any edition) '
+                           'with MSBuild and the v145 C++ toolset; vswhere.exe must be present.')
+    return found
+
+MSBUILD = find_msbuild()
 
 
 def digest(path):
