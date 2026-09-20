@@ -152,9 +152,6 @@ def main():
     args = parser.parse_args()
     # Large native data tables exceed the 32-bit compiler process heap in Debug.
     os.environ["PreferredToolArchitecture"] = "x64"
-    amd64 = verify.MSBUILD.parent / "amd64/MSBuild.exe"
-    if amd64.is_file():
-        verify.MSBUILD = amd64
     verify.OUT = args.out.resolve()
     if not verify.OUT.is_relative_to((ROOT / "build/coo").resolve()):
         raise SystemExit("Validation output must stay under build/coo.")

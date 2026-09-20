@@ -11,7 +11,6 @@ import recover_beyond_infinity as recover
 
 def main():
     out = verify.ROOT / 'build/coo/beyond-infinity-implementation-tests'
-    verify.MSBUILD = Path(r'C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\MSBuild\Current\Bin\amd64\MSBuild.exe')
     out.mkdir(parents=True, exist_ok=True)
     checks = []
     for name in ('recover_beyond_infinity.py', 'generate_beyond_infinity_catalog.py', 'generate_beyond_infinity_runtime.py', 'generate_beyond_infinity_profile.py'):
