@@ -455,8 +455,8 @@ def build(repo, work, args):
     cm += ["add_library(steam_api64 SHARED\n" + "\n".join(q(p) for p in sources) + "\n)"] + properties
     dirs = [repo / "Dawn" / p for p in ("src", "resources", "vendor/lua/src", "vendor/detours", "vendor/imgui", "vendor/imgui/backends")]
     cm += [f"target_include_directories(steam_api64 PRIVATE {' '.join(map(q, dirs + includes))})",
-           'target_compile_definitions(steam_api64 PRIVATE WIN32 _WINDOWS _USRDLL WIN32_LEAN_AND_MEAN NOMINMAX UNICODE _UNICODE _CRT_SECURE_NO_WARNINGS _CRT_USE_BUILTIN_OFFSETOF IMGUI_USER_CONFIG="core/ui/imgui_user_config.h")',
-           'target_compile_options(steam_api64 PRIVATE /utf-8 /Gy /Oi $<$<COMPILE_LANGUAGE:CXX>:/EHsc>)',
+           'target_compile_definitions(steam_api64 PRIVATE WIN32 _WINDOWS _USRDLL WIN32_LEAN_AND_MEAN NOMINMAX UNICODE _UNICODE _CRT_SECURE_NO_WARNINGS _WINSOCK_DEPRECATED_NO_WARNINGS _CRT_USE_BUILTIN_OFFSETOF IMGUI_USER_CONFIG="core/ui/imgui_user_config.h")',
+           'target_compile_options(steam_api64 PRIVATE /utf-8 /Gy /Oi -Wno-braced-scalar-init $<$<COMPILE_LANGUAGE:CXX>:/EHsc>)',
            'target_link_options(steam_api64 PRIVATE /DEBUG /PDBALTPATH:steam_api64.pdb $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>)',
            f"set_target_properties(steam_api64 PROPERTIES RUNTIME_OUTPUT_DIRECTORY {q(output)})"]
     dependencies = ET.parse(project).findtext(".//m:Link/m:AdditionalDependencies", namespaces=ns) or ""
