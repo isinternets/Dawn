@@ -156,7 +156,11 @@ other names remain. Previously packaged content that the new release retires is 
 Separate root and `bin/x64` profiles remain separate.
 
 The fresh installer uses release defaults and does not carry old personal data into the active
-installation. Both workflows back up the previous `Dawn` folders and DLLs. Existing `Sunrise` and
+installation. A fresh installation has no characters: the first launch opens the game's character
+creator, and every character you create starts the New Light introduction. New characters are built
+from the per-class `character_templates` in `Dawn/settings.json` (an older `settings.json` without
+them uses the defaults built into the DLL), and you can delete one from the character screen. Existing saves keep their characters. Both workflows back up the previous `Dawn`
+folders and DLLs. Existing `Sunrise` and
 `Restoration` folders remain intact and are not imported by the release updater.
 
 The fresh installer sets **Windowed Fullscreen** while preserving your existing resolution, render scale,

@@ -163,6 +163,48 @@ bool rebind_account(const AccountState& before, const AccountState& after) noexc
     return matches;
 }
 
+bool append_character(const Table& seed, std::uint64_t characterSoid) noexcept {
+    if (characterSoid == 0) return false;
+    AcquireSRWLockExclusive(&g_lock);
+    bool appended = g_table.characterCount < g_table.characters.size();
+    for (std::size_t index = 0; appended && index < g_table.characterCount; ++index) {
+        appended = g_table.characters[index].characterSoid != characterSoid;
+    }
+    if (appended) {
+        CharacterTable& character = g_table.characters[g_table.characterCount++];
+        character = {};
+        character.characterSoid = characterSoid;
+        character.flags = seed.characterFlags;
+        character.objectFlags = seed.characterObjectFlags;
+        character.objectValues = seed.characterObjectValues;
+        character.progressions = seed.characterProgressions;
+    }
+    ReleaseSRWLockExclusive(&g_lock);
+    return appended;
+}
+
+bool remove_character(std::uint64_t characterSoid) noexcept {
+    if (characterSoid == 0) return false;
+    AcquireSRWLockExclusive(&g_lock);
+    const std::size_t count = (std::min)(g_table.characterCount, g_table.characters.size());
+    std::size_t found = count;
+    for (std::size_t index = 0; index < count; ++index) {
+        if (g_table.characters[index].characterSoid == characterSoid) {
+            found = index;
+            break;
+        }
+    }
+    if (found < count) {
+        for (std::size_t index = found; index + 1U < count; ++index) {
+            g_table.characters[index] = g_table.characters[index + 1U];
+        }
+        g_table.characters[count - 1U] = {};
+        --g_table.characterCount;
+    }
+    ReleaseSRWLockExclusive(&g_lock);
+    return found < count;
+}
+
 /** Restores the empty unlock policy. */
 void clear() noexcept {
     AcquireSRWLockExclusive(&g_lock);

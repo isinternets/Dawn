@@ -38,10 +38,15 @@ Verification:
   response capacity, duplicate saves, stale settings/identity, simulated SQLite
   failure, schema-4 migration, and a new-process reload followed by native record
   encoding.
-- `persistence_tests.vcxproj`: existing persistence and migration regressions.
+- `persistence_tests.vcxproj`: existing persistence and migration regressions, plus character
+  add/remove round trips: the removed character's durable rows, reuse of a freed key, and removing
+  the last character.
+- `opcode501_request_tests.vcxproj`: the create-character request (race, gender and class, decoded
+  from retail captures) and the delete-character request (one 64-bit character id).
 - `settings_dll_startup_tests.vcxproj`: loads the final release DLL and its matching
   private PDB, then exercises the production sign-in identity and character
-  selection functions against an isolated copy of an existing save. It also
+  selection functions against an isolated copy of an existing save that holds at least one
+  character. It also
   checks saved settings and inventory after reopening the database. Stage the
   DLL/PDB and a consistent SQLite backup in
   `build/unit/settings_dll_startup/fixture` (database under `Dawn/player-state.db`),

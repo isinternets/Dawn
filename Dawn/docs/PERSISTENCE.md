@@ -7,12 +7,41 @@ an SQLite program.
 On the first boot without a database, Dawn imports the account, inventory, equipment, sockets,
 item flags, settings, unlock banks, objectives, progression lanes, and family-5 overrides from
 `settings.json`. That import is one transaction. Later boots load the database as the source of
-truth; editing the old seed in `settings.json` does not overwrite saved progress.
+truth; editing the old seed in `settings.json` does not overwrite saved progress. The shipped seed
+holds no characters: the player creates them in the game (see [Characters](#characters)).
 
 The database uses SQLite transactions, foreign keys, and WAL crash recovery. A busy, corrupt, or
 newer-schema database stops startup with an error. Dawn does not silently reset it or fall back
 to the JSON seed. Close the game before copying or restoring the database. After shutdown, copy
 `player-state.db` and any remaining `player-state.db-wal` and `player-state.db-shm` files together.
+
+## Characters
+
+A fresh database has an account and no characters, so the game opens its own character creator.
+Each character the player finishes (Web Service opcode 501) is stored as it is created. Dawn reads
+the race, gender and class from the request and builds the character from the template of that
+class in the `character_templates` array of `settings.json`. There is one template per class, in the
+same format as an account character; it supplies the starting armor, ghost and subclass. A
+`settings.json` written by an earlier release has no such array, and the updater keeps that file, so
+Dawn then uses the templates bundled in the DLL. The new
+character gets its own item instances, is selected as it is created, and starts the New Light
+introduction, so weapons, sparrow and ship stay locked until it is completed. The player enters the
+game without going back to character select. The creator's appearance choices (face, colours) are
+not stored.
+
+While the account has no character, the Client's banner record (Queuez family 0) would never get its
+snapshot: it accepts one only in the short window its subscription opens, and nothing has been picked
+yet. Dawn answers it with the first template as a stand-in, under the key the first character will
+take. Creating that character then refreshes the same record in place.
+
+Deleting a character in the game (opcode 502) removes its row, items and sockets, and every durable
+row it owned (missions, reward debts, flags, objectives and progression lanes), in one transaction.
+The other characters keep their keys and their order. A new character takes the first free key after
+the account key, so a deleted slot can be reused without inheriting old rows. Opening the database
+puts every character back on the account key plus its position, and the rows it owns follow, so a
+save at rest never holds a gap. Sign-in (opcode 503) still rebases the keys onto the Client's account
+key, as before. The game's own UI does not let the player delete their only character (observed on
+build 86657), so that request is not expected for the last one.
 
 Mission rows are scoped to the character captured by the authenticated activity connection.
 Dawn records completion and the checkpoint identities exposed by reconstructed controllers.

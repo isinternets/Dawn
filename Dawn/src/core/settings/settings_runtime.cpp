@@ -172,6 +172,17 @@ void report_upgrade(bool stored) noexcept {
     }
 }
 
+/**
+ * Reports where a settings file without character templates got them.
+ * @param filled True when the bundled defaults supplied the templates.
+ */
+void report_bundled_templates(bool filled) noexcept {
+    const char* const line = filled
+        ? "ev=settings stage=character_templates source=bundled result=ok"
+        : "ev=settings stage=character_templates source=bundled result=fail";
+    log::early(line);
+}
+
 } // namespace
 
 /** Loads the settings file from the owned folder, or creates the default one. */
@@ -248,6 +259,13 @@ bool initialize(void* module) noexcept {
     Settings parsed;
     if (!parse(document, parsed)) {
         return fail("parse");
+    }
+    // A file written before character creation has no templates, and the updater keeps that file.
+    // Creating a character needs one per class, so the defaults built into the DLL fill them in.
+    if (parsed.characterTemplates.characterCount == 0) {
+        std::string_view bundled;
+        report_bundled_templates(bundled_document(module, bundled)
+                                 && fill_missing_character_templates(parsed, bundled));
     }
     // The file is replaced only once the upgraded document is known to parse.
     if (upgrading) {

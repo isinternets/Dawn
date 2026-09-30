@@ -29,6 +29,32 @@ Settings defaults() noexcept { return {}; }
 }
 
 namespace {
+
+/** The text of a settings document without its character templates, as an older release wrote it. */
+std::string without_character_templates(std::string json) {
+    const std::size_t key=json.find("\"character_templates\"");
+    CHECK(key!=std::string::npos);
+    const std::size_t open=json.find('[',key);
+    CHECK(open!=std::string::npos);
+    int depth=0;std::size_t close=open;
+    for(;close<json.size();++close) {
+        if(json[close]=='[')++depth;
+        else if(json[close]==']'&&--depth==0)break;
+    }
+    CHECK(close<json.size());
+    std::size_t begin=key,end=close+1;
+    const std::size_t next=json.find_first_not_of(" \t\r\n",end);
+    if(next!=std::string::npos&&json[next]==',') {
+        end=next+1;
+    } else {
+        // Last member of its object: the comma before it goes instead, or one is left dangling.
+        const std::size_t previous=json.find_last_not_of(" \t\r\n",key-1);
+        CHECK(previous!=std::string::npos&&json[previous]==',');
+        begin=previous;
+    }
+    json.erase(begin,end-begin);
+    return json;
+}
 using namespace dawn::state;
 
 AccountState make_account() {
@@ -219,12 +245,39 @@ int main(int argc,char** argv) {
     dawn::core::settings::Settings fixtureSettings{};
     CHECK(dawn::core::settings::parse(fixtureJson,fixtureSettings));
     CHECK(fixtureSettings.initialAccount.primarySoid==0x9EAA300100100100ULL);
-    CHECK(fixtureSettings.initialAccount.characterCount==3);
-    CHECK(fixtureSettings.initialAccount.characters[0].soid==0x9EAA300100100101ULL);
+    // The shipped settings seed no character. The player creates the first one, which is built
+    // from one of these templates, one per class.
+    CHECK(fixtureSettings.initialAccount.characterCount==0);
+    CHECK(fixtureSettings.characterTemplates.characterCount==3);
+    CHECK(fixtureSettings.characterTemplates.characters[0].soid==0x9EAA300100100101ULL);
+    CHECK(fixtureSettings.characterTemplates.characters[0].characterClass==CharacterClass::hunter);
+    CHECK(fixtureSettings.characterTemplates.characters[1].characterClass==CharacterClass::titan);
+    CHECK(fixtureSettings.characterTemplates.characters[2].characterClass==CharacterClass::warlock);
     CHECK(std::count(fixtureSettings.initialUnlocks.accountFlags.begin(),
                      fixtureSettings.initialUnlocks.accountFlags.end(),
                      unlocks::kFlagSet)!=0);
     CHECK(fixtureSettings.initialFamily5.flagCount!=0);
+    {
+        // The updater keeps the settings file of an older release, which has no character templates.
+        // It still parses, and the templates come from the bundled defaults, one per class, unless
+        // the file carries its own.
+        const std::string olderJson=without_character_templates(fixtureJson);
+        CHECK(olderJson.size()<fixtureJson.size());
+        static dawn::core::settings::Settings older{};
+        CHECK(dawn::core::settings::parse(olderJson,older));
+        CHECK(older.characterTemplates.characterCount==0);
+        CHECK(dawn::core::settings::fill_missing_character_templates(older,fixtureJson));
+        CHECK(older.characterTemplates==fixtureSettings.characterTemplates);
+        static dawn::core::settings::Settings custom{};
+        custom=fixtureSettings;
+        custom.characterTemplates.characterCount=1;
+        CHECK(dawn::core::settings::fill_missing_character_templates(custom,fixtureJson));
+        CHECK(custom.characterTemplates.characterCount==1);
+        static dawn::core::settings::Settings unfilled{};
+        CHECK(dawn::core::settings::parse(olderJson,unfilled));
+        CHECK(!dawn::core::settings::fill_missing_character_templates(unfilled,olderJson));
+        CHECK(unfilled.characterTemplates.characterCount==0);
+    }
 
     const AccountState legacy=make_account();CHECK(account::valid(legacy));
     unlocks::Table legacyUnlocks{};legacyUnlocks.accountFlags[120]=unlocks::kFlagSet;
@@ -248,6 +301,14 @@ int main(int argc,char** argv) {
         CHECK(durable::load_mission(loaded.characters[0].soid,0xF9876543U,found,mission));
         CHECK(found&&mission.checkpointSliceSet==41);durable::shutdown();return 0;
     }
+    // Gives a character its key and item instance keys of its own, so two of them never collide.
+    const auto reseed=[](CharacterState& character,std::uint64_t soid,std::uint64_t firstItem) {
+        character.soid=soid;
+        for(std::optional<account::inventory::Item>& item:character.equipment.slots)
+            if(item.has_value())item->instanceSoid=firstItem++;
+        for(std::size_t i=0;i<character.inventory.count;++i)
+            character.inventory.values[i].instanceSoid=firstItem++;
+    };
     CHECK(account::valid(fixtureSettings.initialAccount));
     remove_database();
     CHECK(durable::initialize(GetModuleHandleW(nullptr),fixtureSettings.initialAccount,
@@ -256,6 +317,112 @@ int main(int argc,char** argv) {
     CHECK(unlocks==unlocks::expand(fixtureSettings.initialUnlocks,
                                    fixtureSettings.initialAccount));
     CHECK(loadedFamily==fixtureSettings.initialFamily5);
+    {
+        // The shipped account starts with no character. Creating one grows the stored account, and
+        // that has to commit and read back. Dropping one would strand its rows, so that stays refused.
+        static AccountState created{};created=loaded;
+        created.characters[0]=fixtureSettings.characterTemplates.characters[1];
+        created.characters[0].soid=created.primarySoid+1U;
+        created.characterCount=1;
+        CHECK(account::valid(created));
+        CHECK(durable::commit_account(loaded,created));
+        CHECK(!durable::commit_account(created,loaded));
+        {
+            // Deleting a character removes its row and every durable row it owned, and leaves the
+            // others exactly as they were, under the keys they already had.
+            static AccountState two{};two=created;
+            reseed(two.characters[0],two.primarySoid+1U,0x7000000000000000ULL);
+            two.characters[1]=fixtureSettings.characterTemplates.characters[2];
+            reseed(two.characters[1],two.primarySoid+2U,0x7100000000000000ULL);
+            two.characterCount=2;
+            CHECK(account::valid(two));
+            CHECK(durable::commit_account(created,two));
+            const std::uint64_t first=two.characters[0].soid,second=two.characters[1].soid;
+            CHECK(durable::store_objective(durable::Scope::characterObject,first,5,11));
+            CHECK(durable::store_objective(durable::Scope::characterObject,second,5,22));
+            static AccountState gone{};gone=two;
+            gone.characters[0]=two.characters[1];gone.characters[1]={};gone.characterCount=1;
+            CHECK(account::valid(gone));
+            // Only the character actually removed may leave, and the survivors must not move.
+            CHECK(!durable::commit_character_removal(two,gone,0));
+            CHECK(!durable::commit_character_removal(two,gone,first+0x10U));
+            CHECK(!durable::commit_character_removal(two,two,first));
+            CHECK(!durable::commit_character_removal(two,gone,second));
+            CHECK(durable::commit_character_removal(two,gone,first));
+            // The removed character no longer exists, so its rows are counted straight from the file.
+            const auto ownerRows=[](std::uint64_t owner) {
+                sqlite3* connection{};CHECK(sqlite3_open16(database_path().c_str(),&connection)==SQLITE_OK);
+                sqlite3_stmt* count{};char text[17]{};
+                std::snprintf(text,sizeof text,"%016llX",static_cast<unsigned long long>(owner));
+                CHECK(sqlite3_prepare_v2(connection,"SELECT COUNT(*) FROM durable_objectives WHERE owner_soid=?1",-1,&count,nullptr)==SQLITE_OK);
+                CHECK(sqlite3_bind_text(count,1,text,-1,SQLITE_TRANSIENT)==SQLITE_OK&&sqlite3_step(count)==SQLITE_ROW);
+                const int rows=sqlite3_column_int(count,0);
+                sqlite3_finalize(count);sqlite3_close(connection);return rows;
+            };
+            bool foundKept=false;std::int32_t keptValue=0,ignored=0;
+            CHECK(ownerRows(first)==0);
+            CHECK(ownerRows(second)==1);
+            CHECK(durable::load_objective(durable::Scope::characterObject,second,5,foundKept,keptValue));
+            CHECK(foundKept&&keptValue==22);
+            // The freed key is reusable and must not inherit anything from its previous owner.
+            static AccountState regrown{};regrown=gone;
+            regrown.characters[1]=fixtureSettings.characterTemplates.characters[1];
+            reseed(regrown.characters[1],first,0x7200000000000000ULL);
+            regrown.characterCount=2;
+            CHECK(account::valid(regrown));
+            CHECK(durable::commit_account(gone,regrown));
+            bool foundReused=true;
+            CHECK(durable::load_objective(durable::Scope::characterObject,first,5,foundReused,ignored));
+            CHECK(!foundReused&&ownerRows(first)==0);
+            CHECK(durable::commit_character_removal(regrown,gone,first));
+            // Removing the last remaining character leaves an empty, valid account.
+            static AccountState empty{};empty=gone;empty.characters[0]={};empty.characterCount=0;
+            CHECK(account::valid(empty));
+            CHECK(durable::commit_character_removal(gone,empty,second));
+            CHECK(durable::commit_account(empty,created));
+        }
+        {
+            // A save that went through a deletion holds the survivor under its old key. Opening it
+            // rebases that key, and the rows the survivor owned follow it.
+            static AccountState two{};two=created;
+            reseed(two.characters[0],two.primarySoid+1U,0x7000000000000000ULL);
+            two.characters[1]=fixtureSettings.characterTemplates.characters[2];
+            reseed(two.characters[1],two.primarySoid+2U,0x7100000000000000ULL);
+            two.characterCount=2;
+            CHECK(account::valid(two));
+            CHECK(durable::commit_account(created,two));
+            const std::uint64_t first=two.characters[0].soid,second=two.characters[1].soid;
+            CHECK(durable::store_objective(durable::Scope::characterObject,second,5,22));
+            static AccountState gone{};gone=two;
+            gone.characters[0]=two.characters[1];gone.characters[1]={};gone.characterCount=1;
+            CHECK(durable::commit_character_removal(two,gone,first));
+            durable::shutdown();
+            static AccountState reopened{};static unlocks::ScopedTable reopenedUnlocks{};static Family5State reopenedFamily{};
+            CHECK(durable::initialize(GetModuleHandleW(nullptr),fixtureSettings.initialAccount,
+                fixtureSettings.initialUnlocks,fixtureSettings.initialFamily5,reopened,reopenedUnlocks,reopenedFamily));
+            CHECK(reopened.characterCount==1&&reopened.characters[0].soid==first);
+            CHECK(reopenedUnlocks.characters[0].characterSoid==first);
+            bool found=false;std::int32_t value=0;
+            CHECK(durable::load_objective(durable::Scope::characterObject,first,5,found,value));
+            CHECK(found&&value==22);
+            // The renamed save is stored as it was rebased, so a second open changes nothing.
+            durable::shutdown();
+            static AccountState again{};static unlocks::ScopedTable againUnlocks{};static Family5State againFamily{};
+            CHECK(durable::initialize(GetModuleHandleW(nullptr),fixtureSettings.initialAccount,
+                fixtureSettings.initialUnlocks,fixtureSettings.initialFamily5,again,againUnlocks,againFamily));
+            CHECK(again==reopened);
+            CHECK(durable::commit_account(again,created));
+        }
+        durable::shutdown();
+        static AccountState reloaded{};static unlocks::ScopedTable reloadedUnlocks{};static Family5State reloadedFamily{};
+        CHECK(durable::initialize(GetModuleHandleW(nullptr),fixtureSettings.initialAccount,
+            fixtureSettings.initialUnlocks,fixtureSettings.initialFamily5,reloaded,reloadedUnlocks,reloadedFamily));
+        CHECK(reloaded==created);
+        durable::shutdown();
+        remove_database();
+        CHECK(durable::initialize(GetModuleHandleW(nullptr),fixtureSettings.initialAccount,
+            fixtureSettings.initialUnlocks,fixtureSettings.initialFamily5,loaded,unlocks,loadedFamily));
+    }
     durable::shutdown();
     remove_database();
     test_vendor_migrations(legacy,legacyUnlocks,family);

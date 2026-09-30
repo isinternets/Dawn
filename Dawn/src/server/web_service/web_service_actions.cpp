@@ -19,6 +19,7 @@
 #include "../../middleware/web_service/messages/opcode402.h"
 #include "../../middleware/web_service/messages/opcode403.h"
 #include "../../middleware/web_service/messages/opcode406.h"
+#include "../../middleware/web_service/messages/opcode502.h"
 #include "../../middleware/web_service/messages/opcode504.h"
 #include "../../middleware/web_service/messages/opcode903.h"
 #include "../../middleware/web_service/messages/opcode901/opcode901_codec.h"
@@ -216,6 +217,24 @@ void select_character(const middleware::web_service::Message& message, Outcome& 
                          core::log::Level::debug,
                          {line.data(), static_cast<std::size_t>(written)});
     }
+}
+
+/**
+ * Removes the character the player confirmed deleting.
+ * An unknown id, or a body that does not parse, leaves the account alone and the reply reports the
+ * refusal. State logs why it refused. Once the character is gone the roster and the account graph
+ * the Client holds are stale, so the outcome asks for a full refresh of both.
+ * @param message Parsed delete-character request.
+ * @param outcome Flags the roster change once the character is removed from State.
+ */
+void delete_character(const middleware::web_service::Message& message, Outcome& outcome) noexcept {
+    middleware::web_service::messages::opcode502::Request doomed;
+    if (!middleware::web_service::messages::opcode502::parse_request(message, doomed)) {
+        core::log::write(
+            core::log::Channel::server, core::log::Level::warn, "ev=ws502 stage=parse result=fail");
+        return;
+    }
+    outcome.rosterChanged = state::delete_character(doomed.characterSoid);
 }
 
 /** Reads the shared opcode-403/404 SOID descriptor through its codec. */
