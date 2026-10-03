@@ -168,8 +168,8 @@ Query read_query(const std::string& search) noexcept {
                 query.kind = edit::GearKind::armor;
                 query.kinded = true;
             } else if (what == "arc" || what == "solar" || what == "void") {
-                query.element = what == "arc" ? edit::Element::arc : what == "solar" ? edit::Element::solar : edit::Element::void_;
-                query.elemented = true;
+                query.damageType = what == "arc" ? edit::DamageType::arc : what == "solar" ? edit::DamageType::solar : edit::DamageType::void_;
+                query.damageTyped = true;
             } else if (what == "locked" || what == "unlocked") {
                 query.locked = what == "locked" ? 1 : 0;
             } else if (what == "equipped") {
@@ -217,7 +217,7 @@ bool passes(const Query& query, const edit::CatalogItem& definition, const edit:
     if ((!query.words.empty() && !edit::matches(definition, query.words))
         || (query.tier >= 0 && definition.definition.tier != query.tier)
         || (query.kinded && definition.kind != query.kind)
-        || (query.elemented && definition.element != query.element)) {
+        || (query.damageTyped && edit::item_damage_type(definition, item, model().catalog) != query.damageType)) {
         return false;
     }
     if (item == nullptr) {

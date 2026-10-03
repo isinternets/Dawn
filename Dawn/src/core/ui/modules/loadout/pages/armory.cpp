@@ -44,10 +44,10 @@ constexpr const char* kAnyClassLabel = "All Classes";
 /** Titan, Hunter and Warlock. */
 constexpr int kClassCount = 3;
 constexpr float kClassFilterWidth = 130.0F;
-/** Damage type filter rows, the first clearing it and the rest in `edit::Element` order. */
+/** Damage type filter rows, the first clearing it and the rest in `edit::DamageType` order. */
 constexpr const char* kAnyDamageLabel = "All Damage Types";
 constexpr const char* kDamageLabels[]{"Kinetic", "Arc", "Solar", "Void"};
-static_assert(std::size(kDamageLabels) == static_cast<std::size_t>(edit::Element::void_) + 1,
+static_assert(std::size(kDamageLabels) == static_cast<std::size_t>(edit::DamageType::void_) + 1,
               "Every damage type needs a label.");
 
 /** 380 authored pixels of height are needed before the tabs and the grid both fit. */
@@ -145,8 +145,8 @@ constexpr std::size_t kTypePreviewCapacity = 64;
                                : !browse.classOnly || edit::fits_class(item, character().characterClass);
     return in_category(item, browse.category) && (browse.includeInternal || !item.internal)
            && (browse.slot < 0 || item.slot == static_cast<std::size_t>(browse.slot))
-           && (browse.element < 0 || browse.category != Category::weapons
-               || static_cast<int>(item.element) == browse.element)
+           && (browse.damageType < 0 || browse.category != Category::weapons
+               || static_cast<int>(item.damageType) == browse.damageType)
            && (browse.rarity == 0 || item.definition.tier == browse.rarity) && classFits
            && passes(query, item, nullptr, false);
 }
@@ -223,17 +223,17 @@ void draw_slot_filter(std::size_t first, std::size_t end) noexcept {
 /** Draws the damage type selector, which weapons alone are offered: a kinetic weapon deals none. */
 void draw_damage_filter() noexcept {
     Browse& browse = model().browse;
-    const char* preview = browse.element < 0 ? kAnyDamageLabel : kDamageLabels[browse.element];
+    const char* preview = browse.damageType < 0 ? kAnyDamageLabel : kDamageLabels[browse.damageType];
     if (!controls::begin_picker("##damage", preview, pixels(kDamageFilterWidth))) {
         return;
     }
-    if (controls::picker_row(kAnyDamageLabel, browse.element < 0)) {
-        browse.element = -1;
+    if (controls::picker_row(kAnyDamageLabel, browse.damageType < 0)) {
+        browse.damageType = -1;
         model().results.key.clear();
     }
-    for (int element = 0; element < static_cast<int>(std::size(kDamageLabels)); ++element) {
-        if (controls::picker_row(kDamageLabels[element], browse.element == element)) {
-            browse.element = element;
+    for (int type = 0; type < static_cast<int>(std::size(kDamageLabels)); ++type) {
+        if (controls::picker_row(kDamageLabels[type], browse.damageType == type)) {
+            browse.damageType = type;
             model().results.key.clear();
         }
     }
@@ -275,7 +275,7 @@ void draw_filter_row(const std::map<std::string, std::size_t>& types, std::size_
     const ImGuiStyle& style = ImGui::GetStyle();
     const bool narrowed = browse.narrowing() != 0 || !browse.type.empty() || browse.search[0] != '\0';
     // Perks and materials go in no slot, so only gear and cosmetics offer the slot selector; a
-    // kinetic weapon deals no element, so only weapons offer the damage type selector.
+    // weapon is all that deals damage, so only weapons offer the damage type selector.
     std::size_t firstSlot = 0;
     std::size_t endSlot = 0;
     const bool slotted = category_slots(browse.category, firstSlot, endSlot);
@@ -406,7 +406,7 @@ void draw_filter_row(const std::map<std::string, std::size_t>& types, std::size_
         browse.classOnly = true;
         browse.includeInternal = false;
         browse.slot = -1;
-        browse.element = -1;
+        browse.damageType = -1;
         browse.armorClass = Browse::kOwnClass;
         browse.type.clear();
         browse.search[0] = '\0';
@@ -421,7 +421,7 @@ void draw_filter_row(const std::map<std::string, std::size_t>& types, std::size_
     return query + "|" + browse.type + "|" + std::to_string(static_cast<int>(browse.category)) + ":"
            + std::to_string(browse.rarity) + ":" + std::to_string(static_cast<int>(browse.sort)) + ":"
            + std::to_string(browse.classOnly) + ":" + std::to_string(browse.includeInternal) + ":"
-           + std::to_string(browse.slot) + ":" + std::to_string(browse.element) + ":"
+           + std::to_string(browse.slot) + ":" + std::to_string(browse.damageType) + ":"
            + std::to_string(browse.armorClass) + ":" + std::to_string(static_cast<unsigned>(character().characterClass));
 }
 

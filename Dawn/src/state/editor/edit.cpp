@@ -110,6 +110,16 @@ bool materialize(Item& item, const Catalog& catalog) {
     item.sockets = sockets;
     return true;
 }
+DamageType item_damage_type(const CatalogItem& definition, const Item* owned, const Catalog& catalog) noexcept {
+    if (!definition.damageTypeFromPlug || owned == nullptr) return definition.damageType;
+    Item resolved = *owned;
+    if (!materialize(resolved, catalog)) return definition.damageType;
+    for (std::size_t lane = 0; lane < resolved.sockets.plugCount; ++lane) {
+        const CatalogItem* plug = resolved.sockets.plugs[lane] ? catalog.find(*resolved.sockets.plugs[lane]) : nullptr;
+        if (plug != nullptr && plug->damageType != DamageType::none) return plug->damageType;
+    }
+    return definition.damageType;
+}
 bool set_plug(Item& item, const Catalog& catalog, std::size_t lane, std::uint16_t id, PlugScope scope) {
     const auto* definition = catalog.find(item.definitionHash);
     const auto* plug = catalog.index(id);

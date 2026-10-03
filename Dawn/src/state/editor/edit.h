@@ -34,6 +34,12 @@ static_assert(std::size(kSlots) == account::inventory::kEquipmentSlotCount, "Eve
 [[nodiscard]] std::string_view stat_label(const Catalog& catalog, std::size_t index) noexcept;
 static_assert(std::size(kStats) == std::tuple_size_v<Stats>, "Every character stat needs a name.");
 bool materialize(Item& item, const Catalog& catalog);
+/**
+ * @return The damage type one weapon deals as it stands. A weapon that takes its damage type from
+ * a plug deals the damage type of the plug fitted now, which can differ from the one it came with.
+ * @param owned Instance whose fitted plugs decide, or null for the weapon as it comes.
+ */
+[[nodiscard]] DamageType item_damage_type(const CatalogItem& definition, const Item* owned, const Catalog& catalog) noexcept;
 bool set_plug(Item& item, const Catalog& catalog, std::size_t lane, std::uint16_t plug, PlugScope scope);
 Stats item_stats(const Item& item, const Catalog& catalog);
 /**

@@ -594,7 +594,7 @@ bool load_catalog(Catalog& output, std::atomic_bool& cancel, std::atomic_uint& p
             item.kind = item.slot <= 2 ? GearKind::weapon : item.slot <= 7 ? GearKind::armor
                 : item.slot == 11 ? GearKind::subclass : item.slot < account::inventory::kEquipmentSlotCount ? GearKind::cosmetic : GearKind::other;
         }
-        item.element = element_of(item.detail);
+        item.damageType = damage_type_of(item.detail);
         if (item.slot < account::inventory::kEquipmentSlotCount
             && item.detail.instancedDefinitionState == build_data::items::details::InstancedDefinitionState::instanced) item.plug = false;
         if (auto it = tags.find(item.definition.definitionHash); it != tags.end()

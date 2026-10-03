@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include <algorithm>
+#include <array>
 #include <optional>
 #include <cstdio>
 #include <imgui.h>
@@ -18,9 +19,8 @@ namespace {
 
 using scaling::dpi::pixels;
 
-/** Scope rows, in the order of the PlugScope values. */
-constexpr const char* kScopeLabels[]{
-    "Compatible", "Socket and Gear Type", "Socket Type", "Gear Type", "All"};
+/** One scope row per PlugScope value. */
+constexpr std::size_t kScopeCount = static_cast<std::size_t>(edit::PlugScope::all) + 1;
 /** Warning shown for every scope past the compatible one. */
 constexpr const char* kExpandedScopeWarning = "May include perks this item does not support.";
 /** Stronger warning for the unrestricted scope. */
@@ -29,8 +29,12 @@ constexpr const char* kUnrestrictedScopeWarning =
 
 /** 160 bytes hold the sheet's muted line: the socket, and the name of the perk in it now. */
 constexpr std::size_t kSocketLineCapacity = 160;
-/** Width of the scope selector at the end of the filter row. */
+/**
+ * The scope selector at the end of the filter row: as wide as this at least, and wider when one of
+ * its rows needs it, with room kept at its end for the chevron.
+ */
 constexpr float kScopeWidth = 190.0F;
+constexpr float kScopeChevronRoom = 28.0F;
 /**
  * The second filter row: type, rarity and order selectors, then the internal-plug toggle. The type
  * selector takes what the others leave, and keeps at least this however narrow the sheet is drawn.
@@ -170,15 +174,90 @@ void draw_filter_row(const Matches& matches) noexcept {
     }
 }
 
+/** @return A name as a list names it: Barrels, Auto Rifles, Batteries, Gauntlets, Leg Armor. */
+[[nodiscard]] std::string plural(const std::string& name) {
+    if (name.ends_with("s") || name.ends_with("Armor")) {
+        return name;
+    }
+    if (name.size() > 1 && name.back() == 'y') {
+        const char before = name[name.size() - 2];
+        if (before != 'a' && before != 'e' && before != 'i' && before != 'o' && before != 'u') {
+            return name.substr(0, name.size() - 1) + "ies";
+        }
+    }
+    return name + "s";
+}
+
+/**
+ * @return What one socket holds, named for the kind of plug most of its own pool is, such as Barrel
+ * or Weapon Mod, or empty when its plugs name no kind.
+ */
+[[nodiscard]] std::string socket_name(const edit::CatalogItem& definition, std::size_t lane) {
+    const edit::Catalog& catalog = model().catalog;
+    std::map<std::string, std::size_t> counts;
+    if (lane < definition.compatible.size()) {
+        for (const std::uint16_t id : definition.compatible[lane]) {
+            const edit::CatalogItem* plug = catalog.index(id);
+            if (plug != nullptr && !plug->type.empty()) {
+                ++counts[plug->type];
+            }
+        }
+    }
+    const auto most = std::max_element(
+        counts.begin(), counts.end(), [](const auto& a, const auto& b) { return a.second < b.second; });
+    return most == counts.end() ? std::string() : most->first;
+}
+
+/**
+ * @return The scope picker's rows for one socket of one item, in the order of the PlugScope values.
+ * Each scope is named for what it keeps to, so the rows read as a ladder from the item outwards:
+ * Chroma Rush Barrels, Auto Rifle Barrels, All Barrels, Auto Rifles, All Weapons, All. An item the
+ * bank names nothing for keeps the plain Compatible for its own pool.
+ */
+[[nodiscard]] std::array<std::string, kScopeCount> scope_labels(const edit::CatalogItem& definition, std::size_t lane) {
+    const std::string subtype = definition.type.empty() ? std::string("Item Subtype") : plural(definition.type);
+    const std::string type = definition.kind == edit::GearKind::weapon     ? std::string("All Weapons")
+                             : definition.kind == edit::GearKind::armor    ? std::string("All Armor")
+                             : definition.kind == edit::GearKind::subclass ? std::string("All Subclasses")
+                             : definition.type.empty()                     ? std::string("Item Type")
+                                                                           : "All " + subtype;
+    std::string own = definition.unnamed ? std::string("Compatible") : definition.name + " Perks";
+    std::string inSubtype = "Socket and " + subtype;
+    std::string anywhere = "Socket Type";
+    if (const std::string socket = socket_name(definition, lane); !socket.empty()) {
+        const std::string sockets = plural(socket);
+        // A socket already named for the subtype, as a helmet's Helmet Armor Mod, is not named for it twice.
+        const bool named =
+            definition.type.empty() || edit::searchable(socket).find(edit::searchable(definition.type)) != std::string::npos;
+        if (!definition.unnamed) {
+            own = definition.name + " " + sockets;
+        }
+        inSubtype = named ? sockets : definition.type + " " + sockets;
+        anywhere = "All " + sockets;
+    }
+    return {own, inSubtype, anywhere, subtype, type, "All"};
+}
+
+/** @return The scope picker's width: its own, or wider when one of its rows needs the room. */
+[[nodiscard]] float scope_width(const std::array<std::string, kScopeCount>& labels) noexcept {
+    float widest = 0.0F;
+    for (const std::string& label : labels) {
+        widest = (std::max)(widest, ImGui::CalcTextSize(label.c_str()).x);
+    }
+    return (std::max)(pixels(kScopeWidth), widest + ImGui::GetStyle().FramePadding.x + pixels(kScopeChevronRoom));
+}
+
 /** Draws the scope picker, at the width the caller set, and the warning the chosen scope earns. */
-void draw_scope_row(const edit::CatalogItem& definition) noexcept {
+void draw_scope_row(const edit::CatalogItem& definition,
+                    const std::array<std::string, kScopeCount>& labels,
+                    float width) noexcept {
     Model& state = model();
+    std::array<const char*, kScopeCount> rows{};
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        rows[i] = labels[i].c_str();
+    }
     int scope = static_cast<int>(state.picker.scope);
-    if (controls::picker("##scope",
-                         scope,
-                         kScopeLabels,
-                         static_cast<int>(std::size(kScopeLabels)),
-                         pixels(kScopeWidth))) {
+    if (controls::picker("##scope", scope, rows.data(), static_cast<int>(rows.size()), width)) {
         state.picker.scope = static_cast<edit::PlugScope>(scope);
         state.picker.options =
             state.catalog.candidates(definition, state.picker.lane, state.picker.scope);
@@ -362,13 +441,14 @@ void draw_perk_picker() noexcept {
     controls::space(controls::kSectionSpacing);
 
     // Search leads the filter row; the scope sits at its end, with its warning under both.
-    const float scopeWidth = pixels(kScopeWidth);
+    const std::array<std::string, kScopeCount> scopes = scope_labels(*definition, state.picker.lane);
+    const float scopeWidth = scope_width(scopes);
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - scopeWidth
                             - ImGui::GetStyle().ItemSpacing.x);
     (void)controls::search(
         "##perk_search", "Search Perks...", state.picker.search, sizeof state.picker.search);
     ImGui::SameLine();
-    draw_scope_row(*definition);
+    draw_scope_row(*definition, scopes, scopeWidth);
 
     controls::space(controls::kRowSpacing);
     const Matches matches = matching_plugs();

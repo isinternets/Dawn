@@ -197,8 +197,8 @@ struct Browse {
     bool includeInternal{};
     /** Equipment slot the results are narrowed to, or -1 for every slot. A swap sets its own. */
     int slot{-1};
-    /** Damage type weapons are narrowed to, as an `edit::Element` value, or -1 for every one. */
-    int element{-1};
+    /** Damage type weapons are narrowed to, as an `edit::DamageType` value, or -1 for every one. */
+    int damageType{-1};
     /** `armorClass` value that follows the class of the character in play, which is where it starts. */
     static constexpr int kOwnClass = -2;
     /**
@@ -214,7 +214,7 @@ struct Browse {
     [[nodiscard]] int narrowing() const noexcept {
         const bool armor = category == Category::armor;
         return (rarity != 0 ? 1 : 0) + (classOnly || armor ? 0 : 1) + (includeInternal ? 1 : 0)
-               + (slot >= 0 ? 1 : 0) + (element >= 0 && category == Category::weapons ? 1 : 0)
+               + (slot >= 0 ? 1 : 0) + (damageType >= 0 && category == Category::weapons ? 1 : 0)
                + (armorClass != kOwnClass && armor ? 1 : 0);
     }
 };
@@ -238,8 +238,8 @@ struct Grant {
 /** Perk picker state while it is open over one socket lane. */
 struct SocketPicker {
     std::size_t lane{};
-    /** Opens one step past the native pool: the socket's type across this gear type. */
-    edit::PlugScope scope{edit::PlugScope::socketAndGear};
+    /** Opens one step past the native pool: the socket's type across the item's subtype. */
+    edit::PlugScope scope{edit::PlugScope::socketAndSubtype};
     std::vector<std::uint16_t> options;
     char search[kSearchCapacity]{};
     /** Filters over the offered plugs: a plug type or empty for all, a tier or zero for all. */
@@ -707,9 +707,9 @@ struct Query {
     /** Weapon or armor asked for, when `kinded`. */
     edit::GearKind kind{edit::GearKind::other};
     bool kinded{};
-    /** Element asked for, when `elemented`. */
-    edit::Element element{edit::Element::none};
-    bool elemented{};
+    /** Damage type asked for, when `damageTyped`. */
+    edit::DamageType damageType{edit::DamageType::none};
+    bool damageTyped{};
     /** Each of these is -1 when not asked for, else 1 for yes and 0 for no. */
     int locked{-1};
     int equipped{-1};
