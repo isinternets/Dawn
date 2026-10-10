@@ -2,7 +2,6 @@
 #include "controls.h"
 
 #include <algorithm>
-#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -10,6 +9,7 @@
 #include <imgui_internal.h>
 
 #include "../../scaling/dpi/ui_dpi_scaling.h"
+#include "art.h"
 #include "preview.h"
 
 namespace dawn::core::ui::modules::loadout::controls {
@@ -119,22 +119,10 @@ float spaced_capitals(const std::string& text, ImVec2 at, ImU32 color, bool meas
     return (std::max)(0.0F, x - tracking);
 }
 
-/** @return The label as the tab sets it: ASCII folded to capitals. */
-[[nodiscard]] std::string shouted(const std::string& text) noexcept {
-    std::string result = text;
-    for (char& character : result) {
-        const auto byte = static_cast<unsigned char>(character);
-        if (byte < 0x80U) {
-            character = static_cast<char>(std::toupper(byte));
-        }
-    }
-    return result;
-}
-
 } // namespace
 
 float tab_width(const char* label) noexcept {
-    return spaced_capitals(shouted(visible_label(label)), {}, 0, true);
+    return spaced_capitals(art::shout(visible_label(label)), {}, 0, true);
 }
 
 bool checkbox(const char* label, bool* value) noexcept {
@@ -169,11 +157,11 @@ bool checkbox(const char* label, bool* value) noexcept {
 }
 
 float spaced(const char* text, ImVec2 at, ImU32 color) noexcept {
-    return spaced_capitals(shouted(text), at, color, false);
+    return spaced_capitals(art::shout(text), at, color, false);
 }
 
 float spaced_width(const char* text) noexcept {
-    return spaced_capitals(shouted(text), {}, 0, true);
+    return spaced_capitals(art::shout(text), {}, 0, true);
 }
 
 bool tab(const char* label, bool active, float width) noexcept {
@@ -188,7 +176,7 @@ bool tab(const char* label, bool active, float width) noexcept {
     const bool hovered = ImGui::IsItemHovered();
     const ImVec2 corner{origin.x + width, origin.y + height};
     ImDrawList* draw = ImGui::GetWindowDrawList();
-    const std::string text = shouted(visible_label(label));
+    const std::string text = art::shout(visible_label(label));
     const float textWidth = spaced_capitals(text, {}, 0, true);
     const float lineHeight = ImGui::GetTextLineHeight();
     spaced_capitals(text,
@@ -323,7 +311,7 @@ bool picker(const char* id, int& index, const char* items, float width) noexcept
 
 void heading(const char* text) noexcept {
     const ImVec2 at = ImGui::GetCursorScreenPos();
-    const std::string capitals = shouted(visible_label(text));
+    const std::string capitals = art::shout(visible_label(text));
     const float width = spaced_capitals(
         capitals, at, ImGui::GetColorU32(ImGuiCol_Text, kSectionLabelAlpha), false);
     ImGui::Dummy({width, ImGui::GetTextLineHeight()});
@@ -350,7 +338,7 @@ bool section_header(const char* label, std::size_t count) noexcept {
                                            open || hovered ? kSectionLabelAlpha : 1.0F);
     const float textLeft = origin.x;
     const float textTop = origin.y + (pixels(kSectionHeaderPadding) * 0.5F);
-    const float used = spaced_capitals(shouted(visible_label(label)), {textLeft, textTop}, color, false);
+    const float used = spaced_capitals(art::shout(visible_label(label)), {textLeft, textTop}, color, false);
     char figure[24]{};
     (void)std::snprintf(figure, sizeof figure, "%zu", count);
     draw->AddText({textLeft + used + pixels(kSectionCountGap), textTop},

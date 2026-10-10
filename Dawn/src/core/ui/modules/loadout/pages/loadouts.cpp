@@ -87,6 +87,9 @@ constexpr const char* kChooseHint = "Select a loadout to equip, rename or delete
 constexpr const char* kInPlaceWord = "Equipped";
 constexpr const char* kPastWord = "Unclaimed";
 constexpr const char* kPastTip = "From a deleted character. Using it makes it this character's.";
+/** Another class's pieces still go on, but the game draws none of them on this character. */
+constexpr const char* kOtherClassWord = "%zu Other Class";
+constexpr const char* kOtherClassTip = "Another class's gear equips, but won't show in the inventory screen.";
 /** Footer: the name field and the save that uses it. */
 constexpr const char* kNameHint = "Name for a New Loadout";
 constexpr const char* kSaveLabel = "Save as New";
@@ -139,6 +142,8 @@ struct Preview {
     std::size_t stowed{};
     std::size_t missing{};
     std::size_t unavailable{};
+    /** Pieces of another class than this character's, which go on but do not show. */
+    std::size_t otherClass{};
     /** Held pieces whose saved plugs differ from the ones fitted now. */
     std::size_t refits{};
     /** True when the saved abilities differ from the ones chosen now. */
@@ -258,6 +263,9 @@ void report(const char* text, bool failed) noexcept {
         preview.stowed += match.state == edit::PieceState::stowed ? 1U : 0U;
         preview.missing += match.state == edit::PieceState::missing ? 1U : 0U;
         preview.unavailable += match.state == edit::PieceState::unavailable ? 1U : 0U;
+        const edit::CatalogItem* definition =
+            match.state != edit::PieceState::empty ? state.catalog.find(piece.definition) : nullptr;
+        preview.otherClass += definition != nullptr && !edit::fits_class(*definition, character().characterClass) ? 1U : 0U;
         const edit::Item* held = held_copy(match);
         preview.refits += held != nullptr && edit::refit_count(*held, state.catalog, piece) != 0 ? 1U : 0U;
     }
@@ -526,6 +534,14 @@ void equip_saved(edit::SavedLoadout& loadout) noexcept {
     }
     if (result.refitted != 0) {
         append(" Restored %zu %s as saved.", result.refitted, result.refitted == 1 ? "piece" : "pieces");
+    }
+    std::size_t otherClass = 0;
+    for (const edit::SavedPiece& piece : loadout.pieces) {
+        const edit::CatalogItem* definition = piece.instance != 0 ? state.catalog.find(piece.definition) : nullptr;
+        otherClass += definition != nullptr && !edit::fits_class(*definition, character().characterClass) ? 1U : 0U;
+    }
+    if (otherClass != 0) {
+        append(" %zu other-class %s won't show in the inventory screen.", otherClass, otherClass == 1 ? "piece" : "pieces");
     }
     // The noun counts every piece and the verb the unavailable ones: "1 of 8 pieces is unavailable."
     if (result.unavailable != 0) {
@@ -851,6 +867,10 @@ void explain(const char* tip) noexcept {
         const bool left = preview.unavailable != 0;
         (void)std::snprintf(word, sizeof word, left ? "%zu unavailable" : "%zu missing", left ? preview.unavailable : preview.missing);
         words.push_back({word, meaning, left ? ImGui::GetColorU32(controls::kPendingColor) : muted});
+    }
+    if (preview.otherClass != 0) {
+        (void)std::snprintf(word, sizeof word, kOtherClassWord, preview.otherClass);
+        words.push_back({word, kOtherClassTip, ImGui::GetColorU32(controls::kPendingColor)});
     }
     if (source == Origin::past) {
         words.push_back({kPastWord, kPastTip, muted});

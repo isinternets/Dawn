@@ -3,9 +3,11 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <initializer_list>
 #include <imgui.h>
 #include <map>
 #include <string>
+#include <string_view>
 
 #include "../../../scaling/dpi/ui_dpi_scaling.h"
 #include "../internal.h"
@@ -19,15 +21,15 @@ namespace {
 using scaling::dpi::pixels;
 
 /** Category tabs, in the order of the Category values. */
-constexpr const char* kCategoryLabels[]{"Weapons", "Armor", "Cosmetics", "Perks", "Materials"};
+constexpr const char* kCategoryLabels[]{"Weapons", "Armor", "Cosmetics", "Perks and Mods", "Other"};
 static_assert(std::size(kCategoryLabels) == static_cast<std::size_t>(Category::count),
               "Every browsed category needs a tab label.");
 /** Search hints, one per category. */
 constexpr const char* kSearchHints[]{"Search Weapons...",
                                      "Search Armor...",
                                      "Search Cosmetics...",
-                                     "Search Perks...",
-                                     "Search Materials..."};
+                                     "Search Perks and Mods...",
+                                     "Search Other Items..."};
 /**
  * Sort labels, in the order of the Sort values. The picker has no label beside it, so each row says
  * what the picker is for as well as which order it chose.
@@ -44,25 +46,27 @@ constexpr const char* kAnyClassLabel = "All Classes";
 /** Titan, Hunter and Warlock. */
 constexpr int kClassCount = 3;
 constexpr float kClassFilterWidth = 130.0F;
-/** Damage type filter rows, the first clearing it and the rest in `edit::Element` order. */
+/** Damage type filter rows, the first clearing it and the rest in `edit::DamageType` order. */
 constexpr const char* kAnyDamageLabel = "All Damage Types";
 constexpr const char* kDamageLabels[]{"Kinetic", "Arc", "Solar", "Void"};
-static_assert(std::size(kDamageLabels) == static_cast<std::size_t>(edit::Element::void_) + 1,
+static_assert(std::size(kDamageLabels) == static_cast<std::size_t>(edit::DamageType::void_) + 1,
               "Every damage type needs a label.");
+/** Ammunition filter rows, the first clearing it and the rest in `edit::Ammo` order from Primary. */
+constexpr const char* kAnyAmmoLabel = "All Ammo Types";
+constexpr const char* kAmmoLabels[]{"Primary", "Special", "Heavy"};
+static_assert(std::size(kAmmoLabels) == static_cast<std::size_t>(edit::Ammo::heavy), "Every ammunition needs a label.");
 
 /** 380 authored pixels of height are needed before the tabs and the grid both fit. */
 constexpr float kCompactHeight = 380.0F;
-/** Widest one category tab is drawn, before the row is divided evenly. */
-constexpr float kCategoryTabMaximumWidth = 110.0F;
-constexpr float kCategoryTabRowInset = 36.0F;
 constexpr float kCompactCategoryWidth = 120.0F;
 /**
  * Widths of the filter row selectors, and the least the search keeps when they crowd it. The slot
  * selector takes the width every slot picker in the editor shares.
  */
-constexpr float kSortWidth = 140.0F;
-constexpr float kDamageFilterWidth = 150.0F;
-constexpr float kTypeFilterWidth = 200.0F;
+constexpr float kSortWidth = 124.0F;
+constexpr float kDamageFilterWidth = 140.0F;
+constexpr float kAmmoFilterWidth = 124.0F;
+constexpr float kTypeFilterWidth = 170.0F;
 constexpr float kRarityFilterWidth = 124.0F;
 constexpr float kSearchMinimumWidth = 160.0F;
 /**
@@ -80,6 +84,64 @@ constexpr const char* kNoMatchLabel = "No items match.";
 /** 64 bytes hold a type name with its result count. */
 constexpr std::size_t kTypePreviewCapacity = 64;
 
+/** @return True when one of the words is a whole word of the item's type, so a Module is no mod. */
+[[nodiscard]] bool typed(const edit::CatalogItem& item, std::initializer_list<std::string_view> words) noexcept {
+    const std::string type = edit::searchable(item.type);
+    std::size_t start = 0;
+    while (start < type.size()) {
+        const std::size_t end = (std::min)(type.find(' ', start), type.size());
+        const std::string_view word(type.data() + start, end - start);
+        if (std::find(words.begin(), words.end(), word) != words.end()) return true;
+        start = end + 1;
+    }
+    return false;
+}
+
+/** @return True for a Restore Defaults plug, which clears a cosmetic whatever socket it sits in. */
+[[nodiscard]] bool restore(const edit::CatalogItem& item) noexcept {
+    return edit::searchable(item.name).find("restore default") != std::string::npos;
+}
+
+/** @return True for a kill tracker, which records play rather than dressing a weapon, so it lists with perks. */
+[[nodiscard]] bool tracker(const edit::CatalogItem& item) noexcept {
+    return !restore(item)
+           && (item.name == "Tracker Disabled" || edit::searchable(item.type).find("tracker") != std::string::npos);
+}
+
+/**
+ * @return True for a quest step. Some are filed in the Ghost's bucket, which would make them cosmetics,
+ * but they are carried, not worn.
+ */
+[[nodiscard]] bool quest(const edit::CatalogItem& item) noexcept {
+    return typed(item, {"quest", "quests"});
+}
+
+/**
+ * @return True for an account stack that is no mod, such as a consumable or a material. A socket can
+ * list one, but it is stocked and spent like the other stacks, so it lists with them.
+ */
+[[nodiscard]] bool spent_stack(const edit::CatalogItem& item) noexcept {
+    return item.detail.maxStackSize > 1 && item.definition.bucketId != edit::kModBucketId;
+}
+
+/**
+ * @return True for an item its type calls a mod, a perk or an effect, such as a Nightfall modifier or a
+ * buff, which not every one of carries a plug category. Whole words only, so an Upgrade Module stays a
+ * material.
+ */
+[[nodiscard]] bool perk_typed(const edit::CatalogItem& item) noexcept {
+    return typed(item, {"mod", "mods", "modifier", "modifiers", "perk", "perks", "trait", "traits", "buff", "buffs",
+                        "effect", "effects", "catalyst", "engine", "engines"});
+}
+
+/**
+ * @return True for a consumable, a material or a transcript, which can carry a plug category but is
+ * spent, not socketed.
+ */
+[[nodiscard]] bool spent_typed(const edit::CatalogItem& item) noexcept {
+    return typed(item, {"consumable", "consumables", "material", "materials", "transcript", "transcripts"});
+}
+
 /** @return True when one catalog item belongs to the browsed category. */
 [[nodiscard]] bool in_category(const edit::CatalogItem& item, Category category) noexcept {
     switch (category) {
@@ -88,11 +150,16 @@ constexpr std::size_t kTypePreviewCapacity = 64;
     case Category::armor:
         return item.kind == edit::GearKind::armor && !item.plug;
     case Category::cosmetics:
-        return item.kind == edit::GearKind::cosmetic;
+        return (item.kind == edit::GearKind::cosmetic || restore(item) || (edit::cosmetic(item) && !tracker(item)))
+               && !quest(item);
     case Category::perks:
-        return item.plug;
-    case Category::materials:
-        return item.kind == edit::GearKind::other && !item.plug;
+        return (!edit::cosmetic(item) || tracker(item)) && !restore(item) && !quest(item) && !spent_typed(item)
+               && ((item.plug && !spent_stack(item)) || (item.kind == edit::GearKind::other && perk_typed(item)));
+    case Category::other:
+        // Whatever no other tab takes, so nothing the catalog holds goes unlisted: materials,
+        // currencies, consumables and subclasses among it.
+        return !in_category(item, Category::weapons) && !in_category(item, Category::armor)
+               && !in_category(item, Category::cosmetics) && !in_category(item, Category::perks);
     case Category::count:
         break;
     }
@@ -118,7 +185,7 @@ constexpr std::size_t kTypePreviewCapacity = 64;
         end = kSlotCount;
         return true;
     case Category::perks:
-    case Category::materials:
+    case Category::other:
     case Category::count:
         break;
     }
@@ -145,8 +212,9 @@ constexpr std::size_t kTypePreviewCapacity = 64;
                                : !browse.classOnly || edit::fits_class(item, character().characterClass);
     return in_category(item, browse.category) && (browse.includeInternal || !item.internal)
            && (browse.slot < 0 || item.slot == static_cast<std::size_t>(browse.slot))
-           && (browse.element < 0 || browse.category != Category::weapons
-               || static_cast<int>(item.element) == browse.element)
+           && (browse.damageType < 0 || browse.category != Category::weapons
+               || static_cast<int>(item.damageType) == browse.damageType)
+           && (browse.ammo < 0 || browse.category != Category::weapons || static_cast<int>(item.ammo) == browse.ammo)
            && (browse.rarity == 0 || item.definition.tier == browse.rarity) && classFits
            && passes(query, item, nullptr, false);
 }
@@ -172,14 +240,12 @@ void draw_category_navigation(bool compact) noexcept {
         ImGui::SameLine();
         return;
     }
-    const float width =
-        (std::min)(pixels(kCategoryTabMaximumWidth),
-                   (ImGui::GetContentRegionAvail().x - pixels(kCategoryTabRowInset))
-                       / std::size(kCategoryLabels));
+    // Each tab is as wide as its own label and the room every tab keeps, as the view tabs over it are.
     for (std::size_t i = 0; i < std::size(kCategoryLabels); ++i) {
         if (i != 0) {
             ImGui::SameLine();
         }
+        const float width = controls::tab_width(kCategoryLabels[i]) + pixels(controls::kTabPadding);
         if (controls::tab(kCategoryLabels[i], category == static_cast<int>(i), width)) {
             if (browse.category != static_cast<Category>(i)) {
                 browse.slot = -1;
@@ -223,17 +289,37 @@ void draw_slot_filter(std::size_t first, std::size_t end) noexcept {
 /** Draws the damage type selector, which weapons alone are offered: a kinetic weapon deals none. */
 void draw_damage_filter() noexcept {
     Browse& browse = model().browse;
-    const char* preview = browse.element < 0 ? kAnyDamageLabel : kDamageLabels[browse.element];
+    const char* preview = browse.damageType < 0 ? kAnyDamageLabel : kDamageLabels[browse.damageType];
     if (!controls::begin_picker("##damage", preview, pixels(kDamageFilterWidth))) {
         return;
     }
-    if (controls::picker_row(kAnyDamageLabel, browse.element < 0)) {
-        browse.element = -1;
+    if (controls::picker_row(kAnyDamageLabel, browse.damageType < 0)) {
+        browse.damageType = -1;
         model().results.key.clear();
     }
-    for (int element = 0; element < static_cast<int>(std::size(kDamageLabels)); ++element) {
-        if (controls::picker_row(kDamageLabels[element], browse.element == element)) {
-            browse.element = element;
+    for (int type = 0; type < static_cast<int>(std::size(kDamageLabels)); ++type) {
+        if (controls::picker_row(kDamageLabels[type], browse.damageType == type)) {
+            browse.damageType = type;
+            model().results.key.clear();
+        }
+    }
+    controls::end_picker();
+}
+
+/** Draws the ammunition selector, which weapons alone are offered. */
+void draw_ammo_filter() noexcept {
+    Browse& browse = model().browse;
+    const char* preview = browse.ammo < 1 ? kAnyAmmoLabel : kAmmoLabels[browse.ammo - 1];
+    if (!controls::begin_picker("##ammo", preview, pixels(kAmmoFilterWidth))) {
+        return;
+    }
+    if (controls::picker_row(kAnyAmmoLabel, browse.ammo < 0)) {
+        browse.ammo = -1;
+        model().results.key.clear();
+    }
+    for (int ammo = 1; ammo <= static_cast<int>(std::size(kAmmoLabels)); ++ammo) {
+        if (controls::picker_row(kAmmoLabels[ammo - 1], browse.ammo == ammo)) {
+            browse.ammo = ammo;
             model().results.key.clear();
         }
     }
@@ -262,7 +348,7 @@ void draw_class_filter() noexcept {
 }
 
 /**
- * Draws the filter row: the search leads, then the slot, damage type or class, type, rarity and sort
+ * Draws the filter row: the search leads, then the slot, damage type and ammunition or class, type, rarity and sort
  * selectors, the toggles and Reset. One row reads as one set of controls over the grid, so the
  * toggles and Reset drop to a line of their own only when keeping them would squeeze the search
  * under its least. Reset keeps its place, disabled until something narrows the list, so typing a
@@ -274,8 +360,8 @@ void draw_filter_row(const std::map<std::string, std::size_t>& types, std::size_
     Browse& browse = model().browse;
     const ImGuiStyle& style = ImGui::GetStyle();
     const bool narrowed = browse.narrowing() != 0 || !browse.type.empty() || browse.search[0] != '\0';
-    // Perks and materials go in no slot, so only gear and cosmetics offer the slot selector; a
-    // kinetic weapon deals no element, so only weapons offer the damage type selector.
+    // Perks and other items go in no slot, so only gear and cosmetics offer the slot selector; a
+    // weapon is all that deals damage or fires ammunition, so only weapons offer those selectors.
     std::size_t firstSlot = 0;
     std::size_t endSlot = 0;
     const bool slotted = category_slots(browse.category, firstSlot, endSlot);
@@ -289,7 +375,7 @@ void draw_filter_row(const std::map<std::string, std::size_t>& types, std::size_
         return style.ItemSpacing.x + ImGui::GetFrameHeight() + style.ItemInnerSpacing.x + ImGui::CalcTextSize(label).x;
     };
     const float selectors = (slotted ? style.ItemSpacing.x + pixels(controls::kSlotPickerWidth) : 0.0F)
-                            + (weapons ? style.ItemSpacing.x + pixels(kDamageFilterWidth) : 0.0F)
+                            + (weapons ? (style.ItemSpacing.x * 2.0F) + pixels(kDamageFilterWidth) + pixels(kAmmoFilterWidth) : 0.0F)
                             + (armor ? style.ItemSpacing.x + pixels(kClassFilterWidth) : 0.0F)
                             + pixels(kTypeFilterWidth) + pixels(kRarityFilterWidth) + pixels(kSortWidth)
                             + (style.ItemSpacing.x * 3.0F);
@@ -315,6 +401,8 @@ void draw_filter_row(const std::map<std::string, std::size_t>& types, std::size_
     if (weapons) {
         ImGui::SameLine();
         draw_damage_filter();
+        ImGui::SameLine();
+        draw_ammo_filter();
     }
     if (armor) {
         ImGui::SameLine();
@@ -403,10 +491,11 @@ void draw_filter_row(const std::map<std::string, std::size_t>& types, std::size_
     ImGui::BeginDisabled(!narrowed);
     if (ImGui::Button(kResetLabel)) {
         browse.rarity = 0;
-        browse.classOnly = true;
+        browse.classOnly = false;
         browse.includeInternal = false;
         browse.slot = -1;
-        browse.element = -1;
+        browse.damageType = -1;
+        browse.ammo = -1;
         browse.armorClass = Browse::kOwnClass;
         browse.type.clear();
         browse.search[0] = '\0';
@@ -421,7 +510,7 @@ void draw_filter_row(const std::map<std::string, std::size_t>& types, std::size_
     return query + "|" + browse.type + "|" + std::to_string(static_cast<int>(browse.category)) + ":"
            + std::to_string(browse.rarity) + ":" + std::to_string(static_cast<int>(browse.sort)) + ":"
            + std::to_string(browse.classOnly) + ":" + std::to_string(browse.includeInternal) + ":"
-           + std::to_string(browse.slot) + ":" + std::to_string(browse.element) + ":"
+           + std::to_string(browse.slot) + ":" + std::to_string(browse.damageType) + ":" + std::to_string(browse.ammo) + ":"
            + std::to_string(browse.armorClass) + ":" + std::to_string(static_cast<unsigned>(character().characterClass));
 }
 

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include <algorithm>
 #include <array>
 #include <imgui.h>
 
@@ -44,10 +45,41 @@ constexpr std::size_t kMeleeLane = 3;
     return slot ? model().catalog.find(slot->definitionHash) : nullptr;
 }
 
-/** @return True when one catalog item is a subclass this character can equip. */
+/** @return True when one catalog item is a subclass Dawn can read the abilities of, of any class. */
 [[nodiscard]] bool selectable_subclass(const edit::CatalogItem& item) noexcept {
-    return item.kind == edit::GearKind::subclass && !item.abilities[0].empty()
-           && edit::fits_class(item, character().characterClass);
+    return item.kind == edit::GearKind::subclass && !item.abilities[0].empty();
+}
+
+/**
+ * Moves each pick the subclass now on does not offer to its first choice, and the super and melee to
+ * its first attunement when they are not one of its pairs. Picks carried over from another subclass,
+ * a custom one above all, can name entries it lacks, and the apply could not resolve them.
+ */
+void fit_picks(const edit::CatalogItem& definition) noexcept {
+    state::CharacterState& owner = character();
+    bool moved = false;
+    for (std::size_t lane = 0; lane < std::size(kAbilityLanes); ++lane) {
+        if (lane == kSuperLane || lane == kMeleeLane) {
+            continue;
+        }
+        const auto& options = definition.abilities[lane];
+        std::uint8_t& entry = owner.*kAbilityLanes[lane].field;
+        if (!options.empty() && std::none_of(options.begin(), options.end(), [&](const auto& choice) { return choice.entry == entry; })) {
+            entry = options.front().entry;
+            moved = true;
+        }
+    }
+    const bool paired = std::any_of(definition.paths.begin(), definition.paths.end(), [&](const edit::SubclassPath& path) {
+        return path.super == owner.superAbilityEntry && path.melee == owner.meleeAbilityEntry;
+    });
+    if (!paired && !definition.paths.empty()) {
+        owner.superAbilityEntry = definition.paths.front().super;
+        owner.meleeAbilityEntry = definition.paths.front().melee;
+        moved = true;
+    }
+    if (moved) {
+        mark_changed();
+    }
 }
 
 /** Equips one subclass, reusing the owned instance when the character already has it. */
@@ -71,6 +103,9 @@ void choose_subclass(const edit::CatalogItem& definition) noexcept {
                                  level_of(state.grant.power),
                                  true,
                                  state.status));
+    if (const edit::CatalogItem* now = equipped_subclass(); now == &definition) {
+        fit_picks(definition);
+    }
 }
 
 /**

@@ -34,6 +34,12 @@ static_assert(std::size(kSlots) == account::inventory::kEquipmentSlotCount, "Eve
 [[nodiscard]] std::string_view stat_label(const Catalog& catalog, std::size_t index) noexcept;
 static_assert(std::size(kStats) == std::tuple_size_v<Stats>, "Every character stat needs a name.");
 bool materialize(Item& item, const Catalog& catalog);
+/**
+ * @return The damage type one weapon deals as it stands. A weapon that takes its damage type from
+ * a plug deals the damage type of the plug fitted now, which can differ from the one it came with.
+ * @param owned Instance whose fitted plugs decide, or null for the weapon as it comes.
+ */
+[[nodiscard]] DamageType item_damage_type(const CatalogItem& definition, const Item* owned, const Catalog& catalog) noexcept;
 bool set_plug(Item& item, const Catalog& catalog, std::size_t lane, std::uint16_t plug, PlugScope scope);
 Stats item_stats(const Item& item, const Catalog& catalog);
 /**
@@ -114,7 +120,7 @@ struct LoadoutResult {
     std::size_t brought{};
     /** Pieces held whose saved level or plugs were put back. */
     std::size_t refitted{};
-    /** Pieces skipped: gone from the build, not this class's, at the postmaster, or without room. */
+    /** Pieces skipped: gone from the build, at the postmaster, or without room. */
     std::size_t unavailable{};
     /**
      * The copy each slot's piece turned out to be where that is not the copy saved, one made again or
@@ -131,11 +137,11 @@ enum class PieceState : std::uint8_t {
     /** Held and stowed, so equipping the loadout puts it on. */
     stowed,
     /**
-     * The account holds no copy of the item any longer, but the build still carries it and this
-     * class can hold it, so equipping the loadout makes it again.
+     * The account holds no copy of the item any longer, but the build still carries it, so equipping
+     * the loadout makes it again.
      */
     missing,
-    /** Gone from the build, not this class's, or waiting at the postmaster. */
+    /** Gone from the build or waiting at the postmaster. */
     unavailable,
 };
 /** Where one saved piece stands, and the copy of it equipping the loadout would put on. */

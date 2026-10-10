@@ -143,12 +143,16 @@ float band_height() noexcept {
 
 std::string shout(const std::string& value) noexcept {
     std::string result = value;
-    // Only ASCII is folded: names come from the localized bank, and a byte-wise toupper on a
-    // UTF-8 sequence is not safe.
-    for (char& character : result) {
-        const auto byte = static_cast<unsigned char>(character);
+    // Names come from the localized bank, and a byte-wise toupper on a UTF-8 sequence is not safe, so
+    // ASCII is folded and the accented Latin-1 letters by hand, as the é of Dragée is. Their capitals
+    // sit 0x20 below them in the same two-byte sequence; ÷ sits among them and is no letter.
+    for (std::size_t i = 0; i < result.size(); ++i) {
+        const auto byte = static_cast<unsigned char>(result[i]);
         if (byte < 0x80U) {
-            character = static_cast<char>(std::toupper(byte));
+            result[i] = static_cast<char>(std::toupper(byte));
+        } else if (byte == 0xC3U && i + 1 < result.size()) {
+            const auto low = static_cast<unsigned char>(result[++i]);
+            if (low >= 0xA0U && low <= 0xBEU && low != 0xB7U) result[i] = static_cast<char>(low - 0x20U);
         }
     }
     return result;

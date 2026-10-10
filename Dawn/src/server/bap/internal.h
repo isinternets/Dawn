@@ -253,6 +253,8 @@ struct Session {
     bool accountResyncArmed{};
     /** Consecutive failed attempts at the armed refresh; the arm is dropped past a bound. */
     std::uint8_t accountResyncFailures{};
+    /** True while an armed refresh waits at character select, so the pick cannot clear it. */
+    bool accountResyncHeld{};
 };
 
 /**

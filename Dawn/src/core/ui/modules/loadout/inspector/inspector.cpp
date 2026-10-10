@@ -300,12 +300,11 @@ void draw_item_frame(const edit::CatalogItem& definition,
 
 /**
  * Draws the row that sends a stowed item to another character, under a label naming it, with a
- * button for each. A character whose class cannot hold the item keeps its button, disabled, so
- * the row says why.
+ * button for each, whatever its class.
  * @return True when the item was sent, which takes it off this character: the caller must not
  * read the item again.
  */
-[[nodiscard]] bool draw_send_row(const edit::CatalogItem& definition, const edit::Item& item) noexcept {
+[[nodiscard]] bool draw_send_row(const edit::Item& item) noexcept {
     const Model& state = model();
     const state::AccountState& account = state.draft->after;
     if (account.characterCount < 2) {
@@ -327,15 +326,8 @@ void draw_item_frame(const edit::CatalogItem& definition,
             ImGui::SameLine();
         }
         first = false;
-        const state::CharacterState& other = account.characters[index];
-        const bool fits = edit::fits_class(definition, other.characterClass);
         ImGui::PushID(static_cast<int>(index));
-        ImGui::BeginDisabled(!fits);
         const bool pressed = ImGui::Button(character_label(index).c_str(), size);
-        ImGui::EndDisabled();
-        if (!fits && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-            ImGui::SetTooltip("This item belongs to another class.");
-        }
         ImGui::PopID();
         if (pressed && send_item(item.instanceSoid, index)) {
             return true;
@@ -361,7 +353,7 @@ void draw_owned_actions(const edit::CatalogItem& definition, edit::Item& item) n
     }
     const bool stowed = !placement_of(item.instanceSoid).equipped;
     // A postmaster item is pulled before it goes anywhere, as in game.
-    if (stowed && !item.postmaster && draw_send_row(definition, item)) {
+    if (stowed && !item.postmaster && draw_send_row(item)) {
         return;
     }
     const bool locked = (item.flags & inv::kLockedItemFlag) != 0;

@@ -79,9 +79,7 @@ bool equip_character(CharacterState& character, const Catalog& catalog, std::uin
         auto& source = character.inventory.values[i];
         if (source.instanceSoid != id) continue;
         const auto* definition = catalog.find(source.definitionHash);
-        if (!definition || definition->slot >= inv::kEquipmentSlotCount || source.postmaster
-            || !fits_class(*definition, character.characterClass)) { error = "This item cannot be equipped by this character."; return false; }
-        if (exotic_conflict(character, *definition, catalog)) { error = "Only one Exotic weapon and one Exotic armor piece can be equipped."; return false; }
+        if (!definition || definition->slot >= inv::kEquipmentSlotCount || source.postmaster) { error = "This item cannot be equipped by this character."; return false; }
         auto& target = character.equipment.slots[definition->slot];
         if (target) {
             std::swap(*target, source);
@@ -109,6 +107,16 @@ bool materialize(Item& item, const Catalog& catalog) {
     }
     item.sockets = sockets;
     return true;
+}
+DamageType item_damage_type(const CatalogItem& definition, const Item* owned, const Catalog& catalog) noexcept {
+    if (!definition.damageTypeFromPlug || owned == nullptr) return definition.damageType;
+    Item resolved = *owned;
+    if (!materialize(resolved, catalog)) return definition.damageType;
+    for (std::size_t lane = 0; lane < resolved.sockets.plugCount; ++lane) {
+        const CatalogItem* plug = resolved.sockets.plugs[lane] ? catalog.find(*resolved.sockets.plugs[lane]) : nullptr;
+        if (plug != nullptr && plug->damageType != DamageType::none) return plug->damageType;
+    }
+    return definition.damageType;
 }
 bool set_plug(Item& item, const Catalog& catalog, std::size_t lane, std::uint16_t id, PlugScope scope) {
     const auto* definition = catalog.find(item.definitionHash);
@@ -322,7 +330,6 @@ bool give(Draft& draft, const Catalog& catalog, std::size_t characterIndex, std:
         if (stack.mutationSerial == (std::numeric_limits<std::int32_t>::max)()) { error = "Item revision limit reached."; return false; }
         stack.quantity += quantity; ++stack.mutationSerial;
     } else if (bucket.arraySelector == build_data::inventory::buckets::ArraySelector::character) {
-        if (!fits_class(*definition, character.characterClass)) { error = "This item belongs to another class."; return false; }
         const bool instanced = definition->detail.instancedDefinitionState == build_data::items::details::InstancedDefinitionState::instanced;
         if (quantity > (instanced ? 1 : definition->detail.maxStackSize)) { error = "The quantity exceeds this item's stack limit."; return false; }
         if (character.inventory.count >= character.inventory.values.size() || !inv::has_room(character, bucket.bucketId)) { error = "This inventory slot is full. Free a space before adding an item."; return false; }
@@ -378,7 +385,6 @@ bool move_stowed(CharacterState& source, CharacterState& target, const Catalog& 
     if (item.postmaster) { error = "Pull it from the Postmaster before sending it."; return false; }
     const auto* definition = catalog.find(item.definitionHash);
     if (!definition) { error = "This item is missing from the installed build."; return false; }
-    if (!fits_class(*definition, target.characterClass)) { error = "That character's class cannot hold this item."; return false; }
     if (target.inventory.count >= target.inventory.values.size() || !inv::has_room(target, definition->definition.bucketId)) { error = "That character has no room for it. Free a space there first."; return false; }
     auto moved = item;
     // The receiving character's counter runs on its own and can be behind the item's revision,
@@ -407,9 +413,8 @@ PieceMatch match_piece(const AccountState& account, std::size_t characterIndex, 
     if (piece.instance == 0 || characterIndex >= account.characterCount) return {PieceState::empty, 0, characterIndex};
     const CharacterState& character = account.characters[characterIndex];
     // A definition the installed build no longer carries, as a removed package leaves behind, has
-    // nothing left to make it from, and one of another class could not be held if it were made.
-    const CatalogItem* definition = catalog.find(piece.definition);
-    if (!definition || !fits_class(*definition, character.characterClass)) return {PieceState::unavailable, 0, characterIndex};
+    // nothing left to make it from. One of another class still goes on; the sheet warns of it.
+    if (catalog.find(piece.definition) == nullptr) return {PieceState::unavailable, 0, characterIndex};
     // The copy saved comes first. An instance id only names one item within one account, so the item
     // it names now has to be the one saved: after a reset the same id can belong to something else.
     bool waiting = false;
@@ -526,8 +531,7 @@ namespace {
 std::uint64_t recreate(AccountState& account, CharacterState& character, const Catalog& catalog, const SavedPiece& piece, int level) {
     const CatalogItem* definition = catalog.find(piece.definition);
     build_data::inventory::buckets::Descriptor bucket{};
-    if (!definition || !fits_class(*definition, character.characterClass)
-        || !build_data::find_inventory_bucket_descriptor(definition->definition.bucketId, bucket)
+    if (!definition || !build_data::find_inventory_bucket_descriptor(definition->definition.bucketId, bucket)
         || bucket.arraySelector != build_data::inventory::buckets::ArraySelector::character
         || character.inventory.count >= character.inventory.values.size() || !inv::has_room(character, bucket.bucketId)) return 0;
     Item item; item.definitionHash = piece.definition; item.level = std::clamp(level, 0, kMaximumItemLevel); item.quantity = 1;

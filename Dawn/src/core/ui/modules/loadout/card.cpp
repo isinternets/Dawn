@@ -321,11 +321,8 @@ void draw_controls(const edit::CatalogItem& definition,
     }
 }
 
-/**
- * Offers the other characters one stowed item can be sent to. A character whose class cannot hold
- * the item is listed but disabled, so the menu still says where it could not go.
- */
-void draw_send_menu(const edit::CatalogItem& definition, const edit::Item& item) noexcept {
+/** Offers the other characters one stowed item can be sent to, whatever their class. */
+void draw_send_menu(const edit::Item& item) noexcept {
     const internal::Model& state = internal::model();
     const state::AccountState& account = state.draft->after;
     if (account.characterCount < 2) {
@@ -357,9 +354,8 @@ void draw_send_menu(const edit::CatalogItem& definition, const edit::Item& item)
         if (index == state.character) {
             continue;
         }
-        const state::CharacterState& other = account.characters[index];
         ImGui::PushID(static_cast<int>(index));
-        if (ImGui::MenuItem(internal::character_label(index).c_str(), nullptr, false, edit::fits_class(definition, other.characterClass))) {
+        if (ImGui::MenuItem(internal::character_label(index).c_str())) {
             (void)internal::send_item(item.instanceSoid, index);
         }
         ImGui::PopID();
@@ -408,7 +404,7 @@ void draw_menu(const edit::CatalogItem& definition,
             internal::record_edit(edit::equip(
                 *state.draft, state.catalog, state.character, item.instanceSoid, state.status));
         }
-        draw_send_menu(definition, item);
+        draw_send_menu(item);
     }
     if (ImGui::Selectable(locked ? kUnlockLabel : kLockLabel)) {
         item.flags = locked ? item.flags & ~inv::kLockedItemFlag : item.flags | inv::kLockedItemFlag;

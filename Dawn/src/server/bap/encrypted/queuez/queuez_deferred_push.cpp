@@ -318,13 +318,20 @@ bool consume_deferred(Session& session,
     if (!session.authenticated) {
         return false;
     }
-    if (consume_account_resync(session, scratch, response, written, touchesScratch)) {
+    // A resync armed at character select waits, untried and uncounted, until a character is chosen:
+    // its Family-0 half needs one, and dropping it left new items without their item records.
+    const bool awaitingCharacter = (session.accountResyncArmed || session.accountResyncHeld)
+                                   && state::account::selected_character_soid(state::account_snapshot()) == 0;
+    // The pick publishes as this peer's own change, which disarms it, but sends only the character.
+    session.accountResyncArmed = session.accountResyncArmed || (session.accountResyncHeld && !awaitingCharacter);
+    session.accountResyncHeld = awaitingCharacter;
+    if (!awaitingCharacter && consume_account_resync(session, scratch, response, written, touchesScratch)) {
         session.accountResyncFailures = 0;
         return true;
     }
     // A failed resync remains armed and blocks unrelated deferred output until it can be retried,
     // but not forever: past the limit the arm is dropped and the rest of the output flows again.
-    if (session.accountResyncArmed) {
+    if (session.accountResyncArmed && !awaitingCharacter) {
         if (++session.accountResyncFailures >= kAccountResyncFailureLimit) {
             session.accountResyncArmed = false;
             session.accountResyncFailures = 0;

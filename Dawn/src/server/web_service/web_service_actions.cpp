@@ -34,6 +34,7 @@
 #include "../../state/build_data/items/item_catalog.h"
 #include "../../state/build_data/runtime.h"
 #include "../../state/build_data/vendors/vendor_catalog.h"
+#include "../../state/editor/ability_rows.h"
 #include "../../state/runtime/runtime.h"
 #include "../../state/vendors/answered_interactions.h"
 #include "forest_loot_pickups.h"
@@ -270,6 +271,16 @@ void mutate_equipment(const middleware::web_service::Message& message,
         return;
     }
     outcome.mutation = mutation;
+    // An authored subclass equipped in game may have no ability row under the character's picks,
+    // and the equip can only be encoded with one, so it is built before the equip goes out.
+    constexpr std::size_t kSubclassSlot = 11;
+    if (!unequip && mutation.equipmentSlotIndex == kSubclassSlot) {
+        state::AccountState account = state::account_snapshot();
+        if (mutation.characterIndex < account.characterCount) {
+            account.characters[mutation.characterIndex] = mutation.afterCharacter;
+            (void)state::editor::publish_ability_rows(account);
+        }
+    }
 
     std::array<char, 224> line{};
     const int count =

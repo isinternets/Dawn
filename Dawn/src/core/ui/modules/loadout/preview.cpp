@@ -267,7 +267,8 @@ void run() noexcept {
                 if (g_stop) break;
                 exporting = !g_exports.empty();
                 if (exporting) { request = g_exports.front(); g_exports.pop_front(); }
-                else { tag = g_requests.front(); g_requests.pop_front(); }
+                // Newest first: after a fast scroll the newest asks are the icons on screen now.
+                else { tag = g_requests.back(); g_requests.pop_back(); }
             }
             if (exporting) {
                 Exported done{request.tag, false, true, {}};
@@ -341,8 +342,15 @@ const Texture* acquire(std::uint32_t tag) {
     auto& texture = it->second; texture.lastFrame = frame;
     if (added) {
         std::lock_guard lock(g_lock);
-        if (!g_stop && g_requests.size() < 128) { g_requests.push_back(tag); texture.pending = true; g_wake.notify_one(); }
-        else { g_textures.erase(it); return nullptr; }
+        if (g_stop) { g_textures.erase(it); return nullptr; }
+        // A full queue lets go of its oldest ask, which a long list has most likely scrolled past,
+        // rather than turn away the icon on screen. A dropped icon is asked for again if it returns.
+        if (g_requests.size() >= 128) {
+            const auto stale = g_textures.find(g_requests.front());
+            g_requests.pop_front();
+            if (stale != g_textures.end() && stale->second.pending) g_textures.erase(stale);
+        }
+        g_requests.push_back(tag); texture.pending = true; g_wake.notify_one();
     }
     return texture.count != 0 ? &texture : nullptr;
 }

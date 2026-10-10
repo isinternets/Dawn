@@ -594,7 +594,7 @@ bool load_catalog(Catalog& output, std::atomic_bool& cancel, std::atomic_uint& p
             item.kind = item.slot <= 2 ? GearKind::weapon : item.slot <= 7 ? GearKind::armor
                 : item.slot == 11 ? GearKind::subclass : item.slot < account::inventory::kEquipmentSlotCount ? GearKind::cosmetic : GearKind::other;
         }
-        item.element = element_of(item.detail);
+        item.damageType = damage_type_of(item.detail);
         if (item.slot < account::inventory::kEquipmentSlotCount
             && item.detail.instancedDefinitionState == build_data::items::details::InstancedDefinitionState::instanced) item.plug = false;
         if (auto it = tags.find(item.definition.definitionHash); it != tags.end()
@@ -617,6 +617,10 @@ bool load_catalog(Catalog& output, std::atomic_bool& cancel, std::atomic_uint& p
             std::uint16_t icon{};
             if (strings::read(std::span<const std::byte>(itemStrings), 0x80, icon) && icon < iconRows.count)
                 (void)strings::read(std::span<const std::byte>(iconTable), iconRows.dataOffset + icon * 0x18 + 0x10, item.iconTag);
+            // An emblem's strings name a second icon row, its nameplate, as Sundial reads it.
+            if (item.slot == static_cast<std::size_t>(account::inventory::EquipmentSlot::emblem)
+                && strings::read(std::span<const std::byte>(itemStrings), 0x82, icon) && icon < iconRows.count)
+                (void)strings::read(std::span<const std::byte>(iconTable), iconRows.dataOffset + icon * 0x18 + 0x10, item.nameplateTag);
         }
         // An ornament may reuse a weapon/armor bucket; it belongs in cosmetics and the perk picker.
         const auto type = searchable(item.type);

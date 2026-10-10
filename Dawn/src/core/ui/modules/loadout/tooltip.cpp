@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <map>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <imgui.h>
 
@@ -35,8 +36,8 @@ constexpr float kPadding = 8.0F;
 constexpr float kBandHeight = 52.0F;
 /** The letter the band measures its capitals against, which every face carries. */
 constexpr ImWchar kCapSample = 'H';
-/** One element's mark: what is drawn, what is measured, and the colour both take. */
-struct ElementMark {
+/** One damage type's mark: what is drawn, what is measured, and the colour both take. */
+struct DamageTypeMark {
     const char* glyph{};
     ImWchar code{};
     ImVec4 tint{};
@@ -104,12 +105,12 @@ constexpr float kAmmoMarkExtent = 30.0F;
 constexpr float kAmmoWordGap = 1.0F;
 /**
  * That margin is deeper under the mark than over it, so it drops to sit level with the row.
- * Unlike the element glyphs beside it the mark is a package texture, not type, so there is no
+ * Unlike the damage type glyphs beside it the mark is a package texture, not type, so there is no
  * baked font to ask where its ink sits and the inset it ships with has to be corrected by hand.
  */
 constexpr float kAmmoMarkDrop = 0.06F;
 /**
- * The energy lockup: its element glyph, then its capacity, set bold in the element's own colour.
+ * The energy lockup: its energy type's glyph, then its capacity, set bold in that type's own colour.
  * It is the power lockup drawn small, so the glyph takes the same share of the figure beside it
  * and the two read as one height.
  */
@@ -117,7 +118,7 @@ constexpr float kEnergyValueScale = 1.31F;
 constexpr float kEnergyValueWeight = 0.9F;
 constexpr float kEnergyGlyphGap = 0.0F;
 /** The symbol face fills its em where a digit does not, so the glyph is set smaller to match. */
-constexpr float kElementGlyphScale = 0.50F;
+constexpr float kDamageTypeGlyphScale = 0.50F;
 /**
  * Middle of the power figure's digits, as a share of its box.
  * A box reserves ascender and descender room that digits never reach, so the ink sits above the
@@ -177,7 +178,7 @@ constexpr float kSheetTitleWeight = 1.0F;
 constexpr ImVec4 kPowerRuleColor{1.0F, 1.0F, 1.0F, 0.30F};
 constexpr ImVec4 kMuted{1.0F, 1.0F, 1.0F, 0.55F};
 /**
- * Element glyphs from the game's own symbol face, which the atlas merges.
+ * Damage type glyphs from the game's own symbol face, which the atlas merges.
  * Solar is named thermal in the font, which is the engine's own name for it. Each is kept as both
  * the encoded glyph that gets drawn and the code point that gets measured.
  */
@@ -187,7 +188,7 @@ constexpr const char* kVoidGlyph = "\xEE\x85\x84";
 constexpr ImWchar kArcCode = 0xE143;
 constexpr ImWchar kSolarCode = 0xE140;
 constexpr ImWchar kVoidCode = 0xE144;
-/** Element tints, so the glyph and the power figure read as the game colors them. */
+/** Damage type tints, so the glyph and the power figure read as the game colors them. */
 constexpr ImVec4 kArcTint{0.47F, 0.82F, 0.96F, 1.0F};
 constexpr ImVec4 kSolarTint{0.96F, 0.55F, 0.22F, 1.0F};
 constexpr ImVec4 kVoidTint{0.70F, 0.49F, 0.93F, 1.0F};
@@ -276,6 +277,41 @@ void rule() noexcept {
     ImGui::GetWindowDrawList()->AddLine({left, y}, {right, y}, ImGui::GetColorU32(kRuleColor));
 }
 
+/**
+ * Draws an emblem's nameplate banner across the whole tooltip under its band, edge to edge as the
+ * game sets it. The banner is the nameplate's primary layer; the others are the overlay and the wide
+ * background the roster draws, which are left out.
+ */
+void draw_nameplate(std::uint32_t tag) noexcept {
+    constexpr const char* kBannerRole = "Icon";
+    // Stock banners are 474 by 96; the room is kept at that shape until the artwork is in.
+    float texelsWide = 474.0F;
+    float texelsHigh = 96.0F;
+    int banner = -1;
+    preview::LayerDetails layer{};
+    for (unsigned i = 0; preview::layer_details(tag, i, layer); ++i) {
+        if (layer.role != nullptr && std::string_view(layer.role) == kBannerRole && layer.width != 0 && layer.height != 0) {
+            banner = static_cast<int>(i);
+            texelsWide = static_cast<float>(layer.width);
+            texelsHigh = static_cast<float>(layer.height);
+            break;
+        }
+    }
+    // A little room keeps the banner off the band over it.
+    ImGui::Dummy({0.0F, pixels(kBlockGap)});
+    float left = 0.0F;
+    float right = 0.0F;
+    frame_span(left, right);
+    // The banner is set at its own shape across the whole width, so it meets both edges.
+    const float texel = (right - left) / texelsWide;
+    const float height = texelsHigh * texel;
+    const ImVec2 at{left, ImGui::GetCursorScreenPos().y};
+    // Until the artwork is in, the draw only asks for it, unseen.
+    (void)preview::draw_fitted(tag, at, {right - left, height}, texel, 1.0F,
+                               banner >= 0 ? IM_COL32_WHITE : IM_COL32(255, 255, 255, 0), banner);
+    ImGui::Dummy({0.0F, height});
+}
+
 /** @return True when one plug is the item's intrinsic frame, which the game sets on a panel. */
 [[nodiscard]] bool intrinsic_plug(const edit::CatalogItem& plug) noexcept {
     return edit::searchable(plug.type).find("intrinsic") != std::string::npos;
@@ -326,25 +362,32 @@ void rule() noexcept {
     return true;
 }
 
-/** @return The mark one element draws with. */
-[[nodiscard]] ElementMark element_mark(edit::Element element) noexcept {
-    if (element == edit::Element::arc) {
+/** @return The mark one damage type draws with. */
+[[nodiscard]] DamageTypeMark damage_type_mark(edit::DamageType type) noexcept {
+    if (type == edit::DamageType::arc) {
         return {kArcGlyph, kArcCode, kArcTint};
     }
-    if (element == edit::Element::solar) {
+    if (type == edit::DamageType::solar) {
         return {kSolarGlyph, kSolarCode, kSolarTint};
     }
     return {kVoidGlyph, kVoidCode, kVoidTint};
 }
 
+/** @return The mark an armor piece's energy type draws with: that of the damage type it shares a name with. */
+[[nodiscard]] DamageTypeMark energy_type_mark(edit::EnergyType type) noexcept {
+    return damage_type_mark(type == edit::EnergyType::arc     ? edit::DamageType::arc
+                            : type == edit::EnergyType::solar ? edit::DamageType::solar
+                                                              : edit::DamageType::void_);
+}
+
 /**
- * Draws one element's mark with its own ink centred on a line, and reserves its width.
- * @param mark Element mark to draw.
+ * Draws one damage type's mark with its own ink centred on a line, and reserves its width.
+ * @param mark Damage type mark to draw.
  * @param size Font height the mark is set at, in framebuffer pixels.
  * @param line Screen line the mark's ink centres on.
  * @param rowHeight Height the row reserves for each of its items.
  */
-void draw_element(const ElementMark& mark, float size, float line, float rowHeight) noexcept {
+void draw_damage_type(const DamageTypeMark& mark, float size, float line, float rowHeight) noexcept {
     ImGui::PushFont(nullptr, size);
     const ImVec2 extent = ImGui::CalcTextSize(mark.glyph);
     float inkTop = 0.0F;
@@ -513,8 +556,10 @@ struct Title {
     /** Second figure set between the rule and the label, which armour uses for its energy. */
     std::int32_t badge{};
     bool badged{};
-    /** Element the second figure belongs to, which tints it and gives it its glyph. */
-    edit::Element badgeElement{edit::Element::none};
+    /** Energy type the second figure belongs to, which tints it and gives it its glyph. */
+    edit::EnergyType energyType{edit::EnergyType::none};
+    /** Damage type a weapon deals as it stands, which tints its figure and gives it its glyph. */
+    edit::DamageType damageType{edit::DamageType::none};
     std::string label;
     /** Stat row the title consumed, or `kNoTitleRow` when it consumed none. */
     std::size_t consumed{kNoTitleRow};
@@ -523,7 +568,7 @@ struct Title {
 /** Defined below, beside the stat accumulation it reads. */
 [[nodiscard]] std::int32_t energy_capacity(const edit::CatalogItem& definition,
                                            const edit::Item* owned,
-                                           edit::Element& element) noexcept;
+                                           edit::EnergyType& energyType) noexcept;
 
 /**
  * @return The figure a tooltip leads with.
@@ -542,6 +587,8 @@ struct Title {
         // granted at, which the grant controls set; the rest of the row is the definition's own.
         const bool catalogEntry = owned == nullptr || owned->instanceSoid == 0;
         title.value = catalogEntry ? internal::model().grant.power : internal::power_of(owned->level);
+        // An older weapon deals the damage type of the plug fitted to it, so the instance is asked.
+        title.damageType = edit::item_damage_type(definition, owned, internal::model().catalog);
         if (definition.ammo != edit::Ammo::none) {
             title.label = definition.ammo == edit::Ammo::primary   ? "PRIMARY"
                           : definition.ammo == edit::Ammo::special ? "SPECIAL"
@@ -549,12 +596,12 @@ struct Title {
             return title;
         }
         if (definition.kind == edit::GearKind::armor) {
-            edit::Element element = edit::Element::none;
-            const std::int32_t energy = energy_capacity(definition, owned, element);
+            edit::EnergyType energyType = edit::EnergyType::none;
+            const std::int32_t energy = energy_capacity(definition, owned, energyType);
             if (energy > 0) {
                 title.badged = true;
                 title.badge = energy;
-                title.badgeElement = element;
+                title.energyType = energyType;
                 title.label = "ENERGY";
                 return title;
             }
@@ -587,7 +634,7 @@ struct Title {
     return title;
 }
 
-/** Draws the leading figure: the element glyph, the number in its tint, then its label. */
+/** Draws the leading figure: the damage type glyph, the number in its tint, then its label. */
 /** The lines the power row sets its content on, and the height each item on it reserves. */
 struct PowerRow {
     /** Line the row's artwork centres its ink on: the middle of the power figure's digits. */
@@ -599,8 +646,8 @@ struct PowerRow {
 };
 
 /**
- * Draws the energy lockup armour carries beside its power: its element, then its capacity.
- * @param title Title block holding the capacity and the element it belongs to.
+ * Draws the energy lockup armour carries beside its power: its energy type, then its capacity.
+ * @param title Title block holding the capacity and the energy type it belongs to.
  * @param row Lines the power row is set on.
  */
 void draw_energy(const Title& title, const PowerRow& row) noexcept {
@@ -613,14 +660,14 @@ void draw_energy(const Title& title, const PowerRow& row) noexcept {
     ImGui::PopFont();
 
     // The capacity is the figure this lockup is set around, so its own digits carry the line the
-    // element beside it centres on, rather than the power figure's, which is far larger.
+    // energy type beside it centres on, rather than the power figure's, which is far larger.
     const float top = row.anchor - (extent.y * kTextAnchor);
     const float middle = top + (extent.y * kFigureMiddle);
     ImVec4 tint = ImGui::GetStyleColorVec4(ImGuiCol_Text);
-    if (title.badgeElement != edit::Element::none) {
-        const ElementMark mark = element_mark(title.badgeElement);
+    if (title.energyType != edit::EnergyType::none) {
+        const DamageTypeMark mark = energy_type_mark(title.energyType);
         tint = mark.tint;
-        draw_element(mark, size * kElementGlyphScale, middle, row.height);
+        draw_damage_type(mark, size * kDamageTypeGlyphScale, middle, row.height);
         ImGui::SameLine(0.0F, pixels(kEnergyGlyphGap));
     }
     (void)art::push_figure(size, 0.0F);
@@ -664,9 +711,9 @@ void draw_power(const edit::CatalogItem& definition, const Title& title) noexcep
     const ImVec2 lifted = ImGui::GetCursorScreenPos();
     ImGui::SetCursorScreenPos({lifted.x, lifted.y - pixels(kPowerTopTrim)});
     const float size = ImGui::GetStyle().FontSizeBase * kPowerScale;
-    const bool elemental = definition.element != edit::Element::none;
-    const ElementMark mark = element_mark(definition.element);
-    const ImVec4 tint = elemental ? mark.tint : ImGui::GetStyleColorVec4(ImGuiCol_Text);
+    const bool typed = title.damageType != edit::DamageType::none;
+    const DamageTypeMark mark = damage_type_mark(title.damageType);
+    const ImVec4 tint = typed ? mark.tint : ImGui::GetStyleColorVec4(ImGuiCol_Text);
 
     // The game sets power in a heavier weight than anything else on the tooltip.
     char figure[16]{};
@@ -682,8 +729,8 @@ void draw_power(const edit::CatalogItem& definition, const Title& title) noexcep
                        top + (figureHeight * kTextAnchor),
                        figureHeight * kPowerRowHeight};
 
-    if (elemental) {
-        draw_element(mark, size * kElementGlyphScale, row.centre, row.height);
+    if (typed) {
+        draw_damage_type(mark, size * kDamageTypeGlyphScale, row.centre, row.height);
         ImGui::SameLine(0.0F, pixels(kPowerGlyphGap));
     }
 
@@ -749,14 +796,14 @@ void accumulate(const edit::CatalogItem& source, std::map<std::uint16_t, std::in
 
 /**
  * @return The energy capacity fitted to one piece of armour, or zero when it carries none.
- * The capacity is a stat of its own, named for the element it holds, and the armour's stat group
+ * The capacity is a stat of its own, named for the energy type it holds, and the armour's stat group
  * does not scale it, so it never reaches the stat block and has to be read from the totals.
  */
 [[nodiscard]] std::int32_t energy_capacity(const edit::CatalogItem& definition,
                                            const edit::Item* owned,
-                                           edit::Element& element) noexcept {
+                                           edit::EnergyType& energyType) noexcept {
     const edit::Catalog& catalog = internal::model().catalog;
-    element = edit::Element::none;
+    energyType = edit::EnergyType::none;
     for (const auto& [row, value] : accumulate_totals(definition, owned)) {
         if (value <= 0) {
             continue;
@@ -769,11 +816,11 @@ void accumulate(const edit::CatalogItem& source, std::map<std::uint16_t, std::in
         if (lowered.find("energy capacity") == std::string::npos) {
             continue;
         }
-        // The capacity stat is named for the element that holds it, so the name is the element.
-        element = lowered.find("arc") != std::string::npos     ? edit::Element::arc
-                  : lowered.find("solar") != std::string::npos ? edit::Element::solar
-                  : lowered.find("void") != std::string::npos  ? edit::Element::void_
-                                                               : edit::Element::none;
+        // The capacity stat is named for its energy type, so the name is the type.
+        energyType = lowered.find("arc") != std::string::npos     ? edit::EnergyType::arc
+                     : lowered.find("solar") != std::string::npos ? edit::EnergyType::solar
+                     : lowered.find("void") != std::string::npos  ? edit::EnergyType::void_
+                                                                  : edit::EnergyType::none;
         return value;
     }
     return 0;
@@ -790,8 +837,8 @@ void accumulate(const edit::CatalogItem& source, std::map<std::uint16_t, std::in
         return false;
     }
     if (definition.kind == edit::GearKind::armor) {
-        edit::Element element = edit::Element::none;
-        return energy_capacity(definition, owned, element)
+        edit::EnergyType energyType = edit::EnergyType::none;
+        return energy_capacity(definition, owned, energyType)
                >= state::build_data::items::kMasterworkTier;
     }
     const edit::Catalog& catalog = internal::model().catalog;
@@ -1353,6 +1400,9 @@ void draw_summary(const edit::CatalogItem& definition,
               pixels(kBandHeight),
               1.0F,
               masterworked(definition, owned));
+    if (definition.nameplateTag != 0) {
+        draw_nameplate(definition.nameplateTag);
+    }
     if (!definition.description.empty()) {
         // The flavour text leads, ruled off from the figures and rows that follow it. An item that
         // carries nothing but its description has nothing to be ruled off from.

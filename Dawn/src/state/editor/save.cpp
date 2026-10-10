@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include <Windows.h>
 #include "edit.h"
+#include "ability_rows.h"
 #include "../runtime/runtime.h"
 #include "../runtime/storage/internal.h"
 #include "../build_data/abilities/ability_bucket_catalog.h"
@@ -8,8 +9,11 @@
 #include "../../middleware/datagen/family4/loadout/loadout_resolver.h"
 #include "../../client/content/items/packages/internal.h"
 #include "../../server/bap/runtime.h"
+#include <algorithm>
 #include <atomic>
 #include <memory>
+#include <utility>
+#include <vector>
 
 namespace dawn::state::editor {
 namespace {
@@ -18,6 +22,8 @@ using Selection_t = build_data::abilities::Selection;
 
 /** Slot 11 carries the subclass, which is the only equipment an ability row depends on. */
 constexpr std::size_t kSubclassSlot = 11;
+/** The stock subclasses' socket entry lists, whose every standard pick Dawn builds a row for at start. */
+constexpr std::array<std::uint16_t, 9> kStockSubclassLists{1, 2, 3, 5, 6, 7, 9, 10, 11};
 namespace reader = middleware::content::packages::reader;
 namespace tables = middleware::content::packages::tables;
 
@@ -49,31 +55,86 @@ bool add_unique(std::span<build_data::abilities::Definition> rows, std::size_t& 
     return true;
 }
 
+/** One subclass combination a character needs a row for. */
+struct Need {
+    /** The subclass's socket entry list, which keys its rows. */
+    std::uint16_t list{};
+    Selection_t selection{};
+    /** The equipped subclass's row is required; a stowed one's is only built when it can be. */
+    bool equipped{};
+};
+
 /**
- * @return True when every equipped subclass combination is already published.
+ * Stowed combinations that could not be built, as a stowed subclass that does not offer the
+ * character's picks cannot, so a later apply does not open the package files for them again.
+ */
+std::vector<std::pair<std::uint16_t, Selection_t>> g_unbuildable;
+
+/**
+ * Lists the combinations every character needs: its equipped subclass under its picks, and each
+ * subclass it has stowed under the same picks. The game equips a stowed subclass without changing
+ * the picks and draws the character from that subclass's row at once, so a row missing then ends
+ * the session.
+ * @param catalog The editor's catalog, which names the stowed subclasses, or null to list only the
+ * equipped ones, as an equip made in game does: it runs where the catalog may not be loaded.
+ * @return False when an equipped subclass is missing from the build.
+ */
+bool needed(const AccountState& account, const Catalog* catalog, std::vector<Need>& output) {
+    output.clear();
+    // Every equipped row comes before any stowed one, so the stowed ones never take the room an
+    // equipped one needs.
+    for (std::size_t i = 0; i < account.characterCount; ++i) {
+        const CharacterState& character = account.characters[i];
+        if (const auto& subclass = character.equipment.slots[kSubclassSlot]) {
+            build_data::items::Definition definition{};
+            build_data::items::details::Definition detail{};
+            if (!build_data::find_item_definition_hash(subclass->definitionHash, definition)
+                || !build_data::find_configured_item_detail(definition.definitionIndex, detail)) return false;
+            output.push_back({detail.socketEntryListIndex, ability_selection(character), true});
+        }
+    }
+    for (std::size_t i = 0; catalog != nullptr && i < account.characterCount; ++i) {
+        const CharacterState& character = account.characters[i];
+        const Selection_t selection = ability_selection(character);
+        for (std::size_t j = 0; j < character.inventory.count; ++j) {
+            const auto* item = catalog->find(character.inventory.values[j].definitionHash);
+            if (!item || item->kind != GearKind::subclass) continue;
+            const std::pair<std::uint16_t, Selection_t> key{item->detail.socketEntryListIndex, selection};
+            if (std::find(g_unbuildable.begin(), g_unbuildable.end(), key) == g_unbuildable.end()) output.push_back({key.first, selection, false});
+        }
+    }
+    return true;
+}
+
+/**
+ * @return True when every needed subclass combination is already published.
  * Applying is now a per-edit action, so the common case must not open the package files at all.
  */
-bool ability_rows_published(const AccountState& account, const Catalog& catalog,
+bool ability_rows_published(std::span<const Need> needs,
     std::span<build_data::abilities::Definition> rows, std::size_t& count) {
-    for (std::size_t i = 0; i < account.characterCount; ++i) {
-        const auto& subclass = account.characters[i].equipment.slots[kSubclassSlot];
-        if (!subclass) continue;
-        const auto* item = catalog.find(subclass->definitionHash);
+    for (const Need& need : needs) {
         build_data::abilities::Definition row{};
-        if (!item || !build_data::find_ability_buckets(item->detail.socketEntryListIndex,
-                ability_selection(account.characters[i]), row)) return false;
+        if (!build_data::find_ability_buckets(need.list, need.selection, row)) return false;
         if (!add_unique(rows, count, row)) return false;
     }
     return true;
 }
 
 /** Builds the subclass ability combinations every character in the account needs. */
-bool ability_rows(const AccountState& account, const Catalog& catalog,
+bool ability_rows(const AccountState& account, const Catalog* catalog,
     std::span<build_data::abilities::Definition> rows, std::size_t& count) {
-    // Keep the prebuilt combinations available after saving any character's loadout.
+    // Dawn's own rows for the stock subclasses are kept, and on top of them only the rows the account
+    // needs now. Rows were once only ever added, and the build cache keeps them from one session to
+    // the next, so every custom subclass and every pick ever tried stayed until the table was full.
     if (!build_data::abilities::snapshot(rows, count)) return false;
+    count = static_cast<std::size_t>(std::remove_if(rows.begin(), rows.begin() + static_cast<std::ptrdiff_t>(count),
+        [](const build_data::abilities::Definition& row) {
+            return std::find(kStockSubclassLists.begin(), kStockSubclassLists.end(), row.socketEntryListIndex) == kStockSubclassLists.end();
+        }) - rows.begin());
     const std::size_t published = count;
-    if (ability_rows_published(account, catalog, rows, count)) return true;
+    std::vector<Need> needs;
+    if (!needed(account, catalog, needs)) return false;
+    if (ability_rows_published(needs, rows, count)) return true;
     count = published;
     reader::BlockKeys keys{};
     auto scratch = std::make_unique<reader::Scratch>();
@@ -94,22 +155,24 @@ bool ability_rows(const AccountState& account, const Catalog& catalog,
             && reader::read_tag(source, *scratch, tableTag, table) && tables::find_array_at(table, 8, array);
     }
     if (!found) return false;
-    for (std::size_t i = 0; i < account.characterCount; ++i) {
-        const auto& character = account.characters[i];
-        const auto& subclass = character.equipment.slots[kSubclassSlot];
-        if (!subclass) continue;
-        const auto* item = catalog.find(subclass->definitionHash);
-        if (!item) return false;
-        const auto selection = ability_selection(character);
+    for (const Need& need : needs) {
+        const std::uint16_t list = need.list;
         build_data::abilities::Definition row{};
-        if (!build_data::find_ability_buckets(item->detail.socketEntryListIndex, selection, row)) {
+        if (!build_data::find_ability_buckets(list, need.selection, row)) {
             tables::IndexRow index{};
-            if (!tables::index_row(table, array, item->detail.socketEntryListIndex, index)
+            if (!tables::index_row(table, array, list, index)
                 || !reader::read_tag(source, *scratch, index.targetTag, definition)
-                || !packages::build_ability_buckets(source, *scratch, definition, blob, selection, row)) return false;
-            row.socketEntryListIndex = item->detail.socketEntryListIndex; row.selection = selection;
+                || !packages::build_ability_buckets(source, *scratch, definition, blob, need.selection, row)) {
+                if (need.equipped) return false;
+                g_unbuildable.emplace_back(list, need.selection);
+                continue;
+            }
+            row.socketEntryListIndex = list; row.selection = need.selection;
         }
-        if (!add_unique(rows, count, row)) return false;
+        if (!add_unique(rows, count, row)) {
+            if (need.equipped) return false;
+            g_unbuildable.emplace_back(list, need.selection);
+        }
     }
     return true;
 }
@@ -127,18 +190,14 @@ bool every_character_resolves(const AccountState& account, const Catalog& catalo
     auto resolved = std::make_unique<middleware::datagen::family4::loadout::ResolvedLoadout>();
     for (std::size_t c = 0; c < account.characterCount; ++c) {
         const auto& character = account.characters[c];
-        unsigned exoticWeapons = 0, exoticArmor = 0;
         for (std::size_t slot = 0; slot < character.equipment.slots.size(); ++slot) {
             const auto& item = character.equipment.slots[slot];
             if (!item) continue;
             const auto* definition = catalog.find(item->definitionHash);
-            if (!definition || definition->slot != slot || !fits_class(*definition, character.characterClass)) {
-                message = "Equipped gear must match the character class and equipment slot."; return false;
+            if (!definition || definition->slot != slot) {
+                message = "Equipped gear must match its equipment slot."; return false;
             }
-            exoticWeapons += definition->kind == GearKind::weapon && definition->definition.tier == 5;
-            exoticArmor += definition->kind == GearKind::armor && definition->definition.tier == 5;
         }
-        if (exoticWeapons > 1 || exoticArmor > 1) { message = "Only one Exotic weapon and one Exotic armor piece can be equipped."; return false; }
         // Each character encodes as the selected one, which is the only form the resolver accepts.
         for (std::size_t i = 0; i < validation->characterCount; ++i) validation->characters[i].selected = i == c;
         if (!middleware::datagen::family4::loadout::resolve(*validation, c, *resolved)) {
@@ -149,6 +208,21 @@ bool every_character_resolves(const AccountState& account, const Catalog& catalo
 }
 }
 
+bool publish_ability_rows(const AccountState& account) noexcept {
+    try {
+        std::vector<Need> needs;
+        if (!needed(account, nullptr, needs)) return false;
+        // The common equip has its row already, and must not open the package files or rewrite
+        // the published rows.
+        if (std::all_of(needs.begin(), needs.end(), [](const Need& need) {
+                build_data::abilities::Definition row{};
+                return build_data::find_ability_buckets(need.list, need.selection, row);
+            })) return true;
+        std::vector<build_data::abilities::Definition> rows(build_data::abilities::kDefinitionCapacity);
+        std::size_t count{};
+        return ability_rows(account, nullptr, rows, count) && build_data::publish_ability_buckets(std::span(rows).first(count));
+    } catch (...) { return false; }
+}
 bool apply(Draft& draft, const Catalog& catalog, std::string& message, bool& live) {
     live = false;
     if (!draft.dirty) { message = "No changes to apply."; return false; }
@@ -157,7 +231,7 @@ bool apply(Draft& draft, const Catalog& catalog, std::string& message, bool& liv
     if (!every_character_resolves(*prepared, catalog, message)) return false;
     std::vector<build_data::abilities::Definition> abilities(build_data::abilities::kDefinitionCapacity);
     std::size_t abilityCount{};
-    if (!ability_rows(*prepared, catalog, abilities, abilityCount)) {
+    if (!ability_rows(*prepared, &catalog, abilities, abilityCount)) {
         message = "The selected subclass abilities could not be resolved."; return false;
     }
     // A draft the game has moved the account past is refused before anything is written, the restore
