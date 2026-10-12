@@ -14,14 +14,14 @@ constexpr int section(const Frame& f) noexcept {
         || f.recovery.holding()) {return -1;}
     switch(static_cast<Section>(f.section)) {
     case Section::landing:return 0;
-    case Section::bridge:return f.interactions[0].completed?2:1;
-    case Section::processing:return 3;
-    case Section::grinder:return f.presentation.event==kObjectives[9]?5:4;
-    case Section::tunnel:return 5;
-    case Section::sunside:return 7;
-    case Section::ready:return 10;
-    case Section::ascent:return 13;
-    case Section::foundry:return f.presentation.event==kObjectives[16]?17:16;
+    case Section::bridge:return 1; // originally f.interactions[0].completed? 2:1; is this the ghost interaction? regardless track 2 seems empty; checked datto's video, the music never stops
+    case Section::processing:return 2; // 3, but datto's video has silence here
+    case Section::grinder:return f.presentation.event==kObjectives[9]?4:3; //f.presentation.event==kObjectives[9]?5:4; 
+    case Section::tunnel:return 6;
+    case Section::sunside:return f.presentation.event==kObjectives[12]?10:8; // this fires too early, needs to wait until door opens / player outside. tried to time to objective, no dice. But if you run for it you wont notice :P
+    case Section::ready:return 11;
+    case Section::ascent:return 12; //13;
+    case Section::foundry:return f.presentation.event==kObjectives[16]?16:13; // 17 : 16
     case Section::access:return f.presentation.event==kObjectives[18]?21:19;
     case Section::exchangers:return f.interactions[5].destroyed || f.interactions[6].destroyed?24:23;
     case Section::core:return 27;
