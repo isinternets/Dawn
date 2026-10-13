@@ -72,6 +72,15 @@ void shutdown() noexcept;
 [[nodiscard]] bool commit_account(const AccountState& before,
                                   const AccountState& after) noexcept;
 
+/**
+ * Durably replaces the account snapshot with one that has lost a single character, and drops every
+ * durable row the removed character owned. `after` must hold the other characters unchanged and in
+ * order. The caller must publish `after` to process memory only after this succeeds.
+ */
+[[nodiscard]] bool commit_character_removal(const AccountState& before,
+                                            const AccountState& after,
+                                            std::uint64_t removedSoid) noexcept;
+
 /** Commit menu preferences and advance the account revision without rewriting inventory. */
 [[nodiscard]] bool commit_settings(const account::settings::AccountSettings& settings) noexcept;
 

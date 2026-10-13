@@ -251,6 +251,11 @@ struct Session {
     bool accountMutationPublished{};
     /** True while another peer's account mutation still needs a full local refresh. */
     bool accountResyncArmed{};
+    /**
+     * Set by encrypted processing when the request that mutated the account left this peer's own
+     * Family-4 graph short of it, so the peer's own refresh is armed along with the others.
+     */
+    bool accountResyncSelf{};
     /** Consecutive failed attempts at the armed refresh; the arm is dropped past a bound. */
     std::uint8_t accountResyncFailures{};
 };

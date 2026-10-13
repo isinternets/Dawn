@@ -167,7 +167,7 @@ bool append_banner_notification(Scratch& scratch,
     // The pair names the first character when none is picked yet. The client's family-zero record
     // accepts a snapshot for about ten seconds, then clears the family and refuses every later
     // one, so holding the pair for the pick spends that window and the subscription times out.
-    if (state::account::banner_character_soid(state::account_snapshot()) == 0) {
+    if (state::account::banner_character_soid(state::banner_account_snapshot()) == 0) {
         core::log::write(core::log::Channel::server,
                          core::log::Level::info,
                          "ev=queuez stage=banner result=skip reason=nocharacter");
@@ -201,7 +201,7 @@ bool append_banner_notification(Scratch& scratch,
     // The Client now holds this pair, so the ladder owns it. Without this an unsubscribe leaves
     // family zero unrecorded and the next pick has no previous record to release.
     const std::uint64_t delivered =
-        state::account::banner_character_soid(state::account_snapshot());
+        state::account::banner_character_soid(state::banner_account_snapshot());
     if (!after.family0Active && delivered != 0) {
         after.family0Active = true;
         after.family0RootSoid = familyRootSoid;
@@ -433,8 +433,9 @@ bool append_account_resync_appearance_notification(
     const state::AccountState account = state::account_snapshot();
     const std::uint64_t selected = state::account::selected_character_soid(account);
     if (selected == 0) {
-        report_skip("resync_no_selected");
-        return false;
+        // At character select nothing is selected, and the banner keeps naming the character it
+        // already shows, so there is nothing in Family 0 to refresh.
+        return true;
     }
     if (before.family0Character != selected) {
         return append_banner_move_notification(
@@ -475,7 +476,11 @@ bool append_account_resync_appearance_notification(
     return true;
 }
 
-/** Refreshes the selected character and its account roster from committed State. */
+/**
+ * Refreshes one character record and the account roster from committed State.
+ * The character is the selected one. At character select nothing is selected, and it is the newest
+ * character instead: creation appends, and refreshing a record that did not change is harmless.
+ */
 bool append_account_resync_roster_notification(Scratch& scratch,
                                                const queuez::SessionState& before,
                                                std::span<const std::byte, state::kAesKeySize> key,
@@ -488,18 +493,26 @@ bool append_account_resync_roster_notification(Scratch& scratch,
         return true;
     }
     const state::AccountState account = state::account_snapshot();
-    const std::uint64_t selected = state::account::selected_character_soid(account);
+    if (account.characterCount == 0) {
+        // Deleting the last character leaves no record to carry the roster, and the refresh always
+        // rides on one. The Client asks for the roster again when it needs it.
+        return true;
+    }
+    std::uint64_t target = state::account::selected_character_soid(account);
+    if (target == 0) {
+        target = account.characters[account.characterCount - 1U].soid;
+    }
     std::size_t characterIndex = account.characterCount;
     for (std::size_t index = 0; index < account.characterCount; ++index) {
-        if (account.characters[index].soid == selected) {
+        if (account.characters[index].soid == target) {
             characterIndex = index;
             break;
         }
     }
     queuez::RosterAppearanceRefresh refresh{};
     snapshot::Prepared prepared{};
-    if (selected == 0 || characterIndex >= account.characterCount
-        || !queuez::stage_roster_appearance_refresh(before, selected, true, refresh)
+    if (target == 0 || characterIndex >= account.characterCount
+        || !queuez::stage_roster_appearance_refresh(before, target, true, refresh)
         || !snapshot::prepare_roster_appearance_refresh(
             scratch, refresh, account.characters[characterIndex], characterIndex, prepared)
         || !append_roster_appearance_frame(
@@ -507,6 +520,11 @@ bool append_account_resync_roster_notification(Scratch& scratch,
         return false;
     }
     after = refresh.after;
+    // A selection made without the pick, by creating a character, finishes a character change the
+    // way the pick does. Left pending, the next change-character request could not be staged.
+    if (state::account::selected_character_soid(account) != 0) {
+        after.family3Phase = queuez::Family3Phase::normal;
+    }
     return true;
 }
 

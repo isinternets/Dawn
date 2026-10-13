@@ -254,7 +254,7 @@ void report_repush(const char* stage, std::size_t bytes) noexcept {
     }
     // Nothing is owed while the account owns no character to name. The arm stays set, because it
     // is the banner's only second chance.
-    if (state::account::banner_character_soid(state::account_snapshot()) == 0) {
+    if (state::account::banner_character_soid(state::banner_account_snapshot()) == 0) {
         return false;
     }
     touchesScratch = true;

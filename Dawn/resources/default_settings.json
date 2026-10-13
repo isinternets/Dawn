@@ -354,7 +354,8 @@
         }
       }
     },
-    "characters": [
+    "characters": [],
+    "character_templates": [
       {
         "soid": "0x9EAA300100100101",
         "race": 0,
@@ -428,101 +429,45 @@
           },
           "helmet": {
             "instance_soid": "0x4000000000000004",
-            "definition_hash": "0xF2994B80",
+            "definition_hash": "0xC3DB6255",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0xEC2137DA",
-              "0x301CB225",
-              "0x301CB225",
-              null,
-              "0x54CCDFF2",
-              "0xA4D6D964",
-              "0x39CBE5E4",
-              "0x85480BD0",
-              "0xA81461CE",
-              "0x01E90FE0",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "gauntlets": {
             "instance_soid": "0x4000000000000005",
-            "definition_hash": "0x61868551",
+            "definition_hash": "0x74EE5B24",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0xEC2137DA",
-              "0x6DE9E6FF",
-              "0x6DE9E6FF",
-              null,
-              "0x54CCDFF2",
-              "0xA4D6D964",
-              "0x39CBE5E4",
-              "0x85480BD0",
-              "0xA81461CE",
-              "0x01E90FE0",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "chest": {
             "instance_soid": "0x4000000000000006",
-            "definition_hash": "0x6F0DBB07",
+            "definition_hash": "0x26A76FE7",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0xEC2137DA",
-              "0x62E854BB",
-              "0x62E854BB",
-              null,
-              "0x54CCDFF2",
-              "0xA4D6D964",
-              "0x39CBE5E4",
-              "0x85480BD0",
-              "0xA81461CE",
-              "0x01E90FE0",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "legs": {
             "instance_soid": "0x4000000000000007",
-            "definition_hash": "0x0B8E36D0",
+            "definition_hash": "0x9ACF3102",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0xEC2137DA",
-              "0x22299393",
-              "0x22299393",
-              "0x64FC1692",
-              "0x54CCDFF2",
-              "0x13EFAFB3",
-              "0x85480BD0",
-              "0xE92D2525",
-              "0x056CABAD",
-              "0x37661C63",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "class_item": {
             "instance_soid": "0x4000000000000008",
-            "definition_hash": "0xB578E716",
+            "definition_hash": "0x3EF3E491",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0x1CB5C883",
-              "0x43C9A775",
-              "0x43C9A775",
-              null,
-              "0x54CCDFF2",
-              "0xA4D6D964",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "ghost": {
             "instance_soid": "0x4000000000000009",
-            "definition_hash": "0xF6856969",
+            "definition_hash": "0x6645AD2E",
             "level": 0,
             "quantity": 1,
-            "plugs": ["0xF17B4841", null, "0xE9B5CF11", "0x909FBBEE"]
+            "plugs": null
           },
           "vehicle": {
             "instance_soid": "0x400000000000000A",
@@ -954,101 +899,45 @@
           },
           "helmet": {
             "instance_soid": "0x4000000000000068",
-            "definition_hash": "0xECB479E4",
+            "definition_hash": "0x27575DF3",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0xEC2137DA",
-              "0x301CB225",
-              "0x301CB225",
-              null,
-              "0x54CCDFF2",
-              "0xA4D6D964",
-              "0x39CBE5E4",
-              "0x85480BD0",
-              "0xA81461CE",
-              "0x01E90FE0",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "gauntlets": {
             "instance_soid": "0x4000000000000069",
-            "definition_hash": "0xE98EBABD",
+            "definition_hash": "0x8124FDFC",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0xEC2137DA",
-              "0x6DE9E6FF",
-              "0x6DE9E6FF",
-              null,
-              "0x54CCDFF2",
-              "0xA4D6D964",
-              "0x39CBE5E4",
-              "0x85480BD0",
-              "0xA81461CE",
-              "0x01E90FE0",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "chest": {
             "instance_soid": "0x400000000000006A",
-            "definition_hash": "0x542FC543",
+            "definition_hash": "0x2B0EA566",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0xEC2137DA",
-              "0x62E854BB",
-              "0x62E854BB",
-              null,
-              "0x54CCDFF2",
-              "0xA4D6D964",
-              "0x39CBE5E4",
-              "0x85480BD0",
-              "0xA81461CE",
-              "0x01E90FE0",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "legs": {
             "instance_soid": "0x400000000000006B",
-            "definition_hash": "0xD2F64E86",
+            "definition_hash": "0x0E3B483C",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0xEC2137DA",
-              "0x22299393",
-              "0x22299393",
-              "0xC130B5BC",
-              "0x54CCDFF2",
-              "0x13EFAFB3",
-              "0x85480BD0",
-              "0xE92D2525",
-              "0x01E90FE0",
-              "0x37661C63",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "class_item": {
             "instance_soid": "0x400000000000006C",
-            "definition_hash": "0x295F70BA",
+            "definition_hash": "0x3E0461CF",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0xEC2137DA",
-              "0x43C9A775",
-              "0x43C9A775",
-              null,
-              "0x54CCDFF2",
-              "0xA4D6D964",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "ghost": {
             "instance_soid": "0x400000000000006D",
-            "definition_hash": "0xF6856969",
+            "definition_hash": "0x6645AD2E",
             "level": 0,
             "quantity": 1,
-            "plugs": ["0xF17B4841", null, "0xE9B5CF11", "0x909FBBEE"]
+            "plugs": null
           },
           "vehicle": {
             "instance_soid": "0x400000000000006E",
@@ -1480,101 +1369,45 @@
           },
           "helmet": {
             "instance_soid": "0x40000000000000CC",
-            "definition_hash": "0xEA042965",
+            "definition_hash": "0xB7B187A2",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0xEC2137DA",
-              "0x301CB225",
-              "0x301CB225",
-              null,
-              "0x54CCDFF2",
-              "0xA4D6D964",
-              "0x39CBE5E4",
-              "0x85480BD0",
-              "0xA81461CE",
-              "0x01E90FE0",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "gauntlets": {
             "instance_soid": "0x40000000000000CD",
-            "definition_hash": "0x188C5834",
+            "definition_hash": "0x9053BA8B",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0xEC2137DA",
-              "0x6DE9E6FF",
-              "0x6DE9E6FF",
-              null,
-              "0x54CCDFF2",
-              "0xA4D6D964",
-              "0x39CBE5E4",
-              "0x85480BD0",
-              "0xA81461CE",
-              "0x01E90FE0",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "chest": {
             "instance_soid": "0x40000000000000CE",
-            "definition_hash": "0xF8689C4C",
+            "definition_hash": "0x83B7DE45",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0xEC2137DA",
-              "0x62E854BB",
-              "0x62E854BB",
-              null,
-              "0x54CCDFF2",
-              "0xA4D6D964",
-              "0x39CBE5E4",
-              "0x85480BD0",
-              "0xA81461CE",
-              "0x01E90FE0",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "legs": {
             "instance_soid": "0x40000000000000CF",
-            "definition_hash": "0x083E04B6",
+            "definition_hash": "0xCEEC379D",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0xEC2137DA",
-              "0x22299393",
-              "0x22299393",
-              "0xC78E19B1",
-              "0x54CCDFF2",
-              "0x13EFAFB3",
-              "0x85480BD0",
-              "0xBAE01BEB",
-              "0x056CABAD",
-              "0xF37F6509",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "class_item": {
             "instance_soid": "0x40000000000000D0",
-            "definition_hash": "0x99446581",
+            "definition_hash": "0x3C95F7A4",
             "level": 106,
             "quantity": 1,
-            "plugs": [
-              "0x1CB5C883",
-              "0x43C9A775",
-              "0x43C9A775",
-              null,
-              "0x54CCDFF2",
-              "0xA4D6D964",
-              "0x29E6A60B"
-            ]
+            "plugs": null
           },
           "ghost": {
             "instance_soid": "0x40000000000000D1",
-            "definition_hash": "0xF6856969",
+            "definition_hash": "0x6645AD2E",
             "level": 0,
             "quantity": 1,
-            "plugs": ["0xF17B4841", null, "0xE9B5CF11", "0x909FBBEE"]
+            "plugs": null
           },
           "vehicle": {
             "instance_soid": "0x40000000000000D2",
@@ -1598,7 +1431,7 @@
           },
           "subclass": {
             "instance_soid": "0x40000000000000D4",
-            "definition_hash": "0xCF88FEA5",
+            "definition_hash": "0xE7BC88B0",
             "level": 0,
             "quantity": 1,
             "plugs": []
