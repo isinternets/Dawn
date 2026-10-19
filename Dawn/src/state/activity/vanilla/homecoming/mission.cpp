@@ -118,7 +118,7 @@ Mission::Mission() noexcept {
     a=armory.add("armory door",0,{area(kUnderwatchExit,"tv_music_shaxx_door")});
     armory.add("armory music",a,{music(ms::shaxxDoor)});
     a=armory.add("post gun area",0,{visit(kUnderwatch,"pt_postgun")});
-    armory.add("evacuation announcement",a,{speech(30)});
+    //armory.add("evacuation announcement",a,{speech(30)});
     a=armory.add("Shaxx door opening",0,{sceneObserved(kUnderwatch,14,SceneEvent::entryCue)});
     b=armory.add("post gun",a,{scene(kUnderwatch,111)});
     c=armory.add("post gun staged",b,{sceneObserved(kUnderwatch,111)});
@@ -132,6 +132,7 @@ Mission::Mission() noexcept {
     a=armory.add("weapon taken",0,{reached(Milestone::weaponGranted)});
     b=armory.add("find Zavala",a,{object(kUnderwatch,103,false),speech(28),objective(2)});
     c=armory.add("military entrance",b,{visit(kUnderwatchExit,"pt_goto_military")});
+    armory.add("evacuation announcement", c, { speech(30) });
     armory.add("military",c|postGunRelease,{finish()});
 
     // Military: the overlook squads, the early friendlies, the fake fight and the corridor
@@ -174,13 +175,15 @@ Mission::Mission() noexcept {
     a=military.add("hangar combat area",arrival,{visit(kMilitary,"pt_hangar_combat")});
     military.add("hangar floor",a,{speech(35)});
     a=military.add("plaza route",arrival|hangarCleared,{visit(kMilitaryRoute,"pt_goto_plaza")});
-    military.add("to the plaza",a|fakeFight,{speech(37),finish()});
+    military.add("to the plaza", a | fakeFight, { music(ms::goingToPlaza), speech(37),finish() });
 
     // First assault -> first Ward -> second assault -> second Ward -> last
     // assault. Enemy clearance, not a delayed radio request, ends each wave.
     auto& plaza=phases[static_cast<std::size_t>(Section::plaza)];plaza.name("Homecoming / Plaza");
-    arrival=plaza.add("plaza arrival",0,{objective(5),music(ms::plazaCabalShip),object(kPlaza,18,false),object(kPlaza,44,false),object(kPlaza,24,false),
+    arrival=plaza.add("plaza arrival",0,{objective(5),object(kPlaza,18,false),object(kPlaza,44,false),object(kPlaza,24,false),
         object(kPlaza,25,false),object(kPlaza,46,false),object(kPlaza,47,false)});
+    plaza.add("first carriers", arrival, { object(kPlazaProps,16),object(kPlazaProps,17),device(kPlazaProps,19,1.F),device(kPlazaProps,20,1.F) });
+    // there should be more carriers here!! It's very likely that they're in other sections of the assault.
     plaza.add("skybox ships A",arrival,{object(kPlazaProps,0),object(kPlazaProps,4),object(kPlazaProps,9),object(kPlazaProps,10),object(kPlazaProps,11),object(kPlazaProps,12)});
     plaza.add("skybox ships B",arrival,{object(kPlazaProps,13),object(kPlazaProps,14),object(kPlazaProps,15),object(kPlazaProps,6),object(kPlazaProps,7),object(kPlazaProps,8)});
     a=plaza.add("Zavala arrival scene",arrival,{batch(SpawnCheckpoint::plaza),scene(kPlaza,2),bind(kPlaza,7)});
@@ -190,8 +193,8 @@ Mission::Mission() noexcept {
     // The preceding room's Ghost line owns the plaza Cabal ship's entrance.
     // A queued line may wait behind radio; use its accepted dispatch, not
     // section arrival, objective changes or the end of the spoken window.
-    b=plaza.add("Traveler sighting",a,{speech(40),speaking(40)});
-    plaza.add("plaza ship entrance",b,{object(kPlazaProps,5)});
+    b=plaza.add("Traveler sighting",a,{speech(40),speaking(40),music(ms::plazaCabalShip) });
+    plaza.add("plaza ship entrance",a,{object(kPlazaProps,5)});
     a=plaza.add("meet Zavala area",arrival,{visit(kPlaza,"pt_plaza_zavala_meet")});
     b=plaza.add("meet Zavala",a,{object(kPlazaProps,0,false),object(kPlaza,8),speech(50)});
     auto arrivalFinished=plaza.add("Zavala arrival finished",zavala,{sceneObserved(kPlaza,2,SceneEvent::performanceFinished)});
@@ -199,7 +202,6 @@ Mission::Mission() noexcept {
     a=plaza.add("opening Cabal cleared",c,{cleared(Cohort::plazaInit)});
     b=a;
     auto first=plaza.add("first assault",b,{objective(7),speech(52),object(kPlaza,45),batch(SpawnCheckpoint::assault1)});
-    plaza.add("first carriers",b,{object(kPlazaProps,16),object(kPlazaProps,17),device(kPlazaProps,19,1.F),device(kPlazaProps,20,1.F)});
     a=plaza.add("first assault cleared",first,{cleared(Cohort::wave1),cleared(Cohort::interim)});
     b=plaza.add("first assault repelled",a,{control(Mechanic::assaultRepelled)});
     c=plaza.add("first barrage",b,{speech(53),mechanic(asset(kPlaza,43,3),Mechanic::stopScene),scene(kPlaza,4),object(kPlaza,44,false),object(kPlaza,46,false),object(kPlaza,47,false),mechanic(asset(kPlaza,23,48),Mechanic::powerOff)});
@@ -237,8 +239,7 @@ Mission::Mission() noexcept {
     a=waves.add("Zavala combat resumes",a,{mechanic(asset(kPlaza,43,2),Mechanic::stopScene),scene(kPlaza,3)});
     b=waves.add("last assault",a,{speech(54),batch(SpawnCheckpoint::assault3),object(kPlazaProps,18),object(kPlazaProps,22),object(kPlazaProps,23),object(kPlazaProps,24)});
     c=waves.add("last carriers",a,{device(kPlazaProps,21,1.F),device(kPlazaProps,31,1.F),device(kPlazaProps,32,1.F),device(kPlazaProps,33,1.F)});
-    waves.add("late carriers",a,{object(kPlazaProps,25),object(kPlazaProps,26),object(kPlazaProps,27),object(kPlazaProps,28),object(kPlazaProps,29),object(kPlazaProps,30)});
-    waves.add("late carrier devices",a,{device(kPlazaProps,34,1.F),device(kPlazaProps,35,1.F),device(kPlazaProps,36,1.F),device(kPlazaProps,37,1.F),device(kPlazaProps,38,1.F),device(kPlazaProps,39,1.F)});
+
     b=waves.add("last assault cleared",b|c,{cleared(Cohort::wave3)});
     c=waves.add("plaza held",b,{control(Mechanic::assaultRepelled)});
     a=waves.add("shuttles away",c,{mechanic(asset(kPlaza,43,3),Mechanic::stopScene),object(kPlaza,45,false),speech(59),objective(9)});
@@ -253,7 +254,7 @@ Mission::Mission() noexcept {
     a=boulevard.add("Ikora staged",arrival,{sceneObserved(kBoulevard,16),visit(kBoulevard,"pt_start_cabal_movement")});
     auto ikora=boulevard.add("Cabal movement",a,{sceneEvent(kBoulevard,16,kIkoraMove)});
     a=boulevard.add("Ikora start area",arrival,{visit(kBoulevard,"pt_start_ikora")});
-    b=boulevard.add("Ikora entry",a|ikora,{sceneEvent(kBoulevard,16,kEntry)});
+    b=boulevard.add("Ikora entry",a|ikora,{sceneEvent(kBoulevard,16,kEntry), music(ms::ikoraAppearance)});
     c=boulevard.add("entry cue",b,{sceneObserved(kBoulevard,16,SceneEvent::entryCue)});
     auto blast=boulevard.add("Nova blast",c,{object(kBoulevard,23),sceneEvent(kBoulevard,16,kIkoraBlast)});
     a=boulevard.add("Speaker report",blast,{sceneObserved(kBoulevard,16,SceneEvent::performanceFinished)});

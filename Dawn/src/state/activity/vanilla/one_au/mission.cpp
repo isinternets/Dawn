@@ -210,7 +210,7 @@ Mission::Mission() noexcept {
     // the centre klaxon, lifts the darkness zone and plays cue 34, as the archive
     // does. The route is not gated on any of it: tube entry hangs off the section's
     // first step, so reaching the transport early is never a dead end.
-    g=foundry.add("foundry secured",f,{control(Mechanic::allow),sequence(kFoundry,5)}); // voice line plays too early
+    g=foundry.add("foundry secured",f,{control(Mechanic::allow),sequence(kFoundry,5)});
     foundry.add("foundry transport opens",g,{device(kFoundry,0,kHatchOpen),device(kFoundry,1,kHatchOpen),
         device(kFoundry,2,kHatchOpen),device(kFoundry,3,kHatchOpen),device(kFoundry,4,kHatchOpen)});
     h=foundry.add("tube entry area",a,{visit(0xA09DC18CU,18)});
