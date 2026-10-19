@@ -20,6 +20,11 @@ struct Outcome {
     /** An opcode-504 pick moved the selection and its Family-4 object still has to follow. */
     bool hasSelectedCharacter{};
     std::uint64_t selectedCharacterSoid{};
+    /**
+     * An opcode-501 or opcode-502 request added or removed a character in State. The Family-4 graph
+     * this peer already holds no longer matches it, so the peer needs a full account refresh.
+     */
+    bool rosterChanged{};
     forest_loot::PickupCommit pickup{};
     std::uint16_t answeredVendor{state::vendors::kAbsentIndex};
     /** A request prepares at most one State mutation; the alternative owns only that payload. */

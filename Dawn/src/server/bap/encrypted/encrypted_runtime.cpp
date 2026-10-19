@@ -45,6 +45,7 @@ bool consume(Session& session,
              std::size_t& written) noexcept {
     written = 0;
     session.accountMutationPublished = false;
+    session.accountResyncSelf = false;
     if (!session.authenticated) {
         // Staying silent here looks the same as a decode fault, and both look like a dead link.
         core::log::write(core::log::Channel::server,
@@ -323,7 +324,11 @@ bool consume(Session& session,
                 }
             }
             if (handled) {
-                session.accountMutationPublished = mutatesAccount;
+                // A created or deleted character reaches the other peers like any account change,
+                // and its own peer is refreshed too, because no update of its own rides in this
+                // reply.
+                session.accountMutationPublished = mutatesAccount || outcome.rosterChanged;
+                session.accountResyncSelf = outcome.rosterChanged;
             if (transaction_if<EquipmentSwapTransaction>(outcome) != nullptr) {
                 std::array<char, core::log::kLineCapacity> line{};
                 const int count = std::snprintf(

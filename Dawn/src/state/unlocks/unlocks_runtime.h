@@ -46,6 +46,23 @@ void publish(const ScopedTable& table) noexcept;
 [[nodiscard]] bool rebind_account(const AccountState& before,
                                   const AccountState& after) noexcept;
 
+/**
+ * Adds the banks of one newly created character, started from the authored policy.
+ * Nothing is stored durably: a character without rows reads its policy, exactly as one loaded
+ * from a database that holds none does.
+ * @param seed Authored policy every character's banks start from.
+ * @param characterSoid Key of the new character.
+ * @return False when the key is zero, the table has no free slot, or it already holds the key.
+ */
+[[nodiscard]] bool append_character(const Table& seed, std::uint64_t characterSoid) noexcept;
+
+/**
+ * Drops one character's unlock table and closes the gap, so the rest keep the order the account
+ * lists them in, which `rebind_account` relies on.
+ * @return False when the table holds no such character.
+ */
+[[nodiscard]] bool remove_character(std::uint64_t characterSoid) noexcept;
+
 /** Restores the empty unlock policy. */
 void clear() noexcept;
 

@@ -8,6 +8,8 @@
 namespace dawn::server::web_service {
 
 void select_character(const middleware::web_service::Message& message, Outcome& outcome) noexcept;
+/** Answers an opcode-502 delete-character request: removes the character and flags the roster. */
+void delete_character(const middleware::web_service::Message& message, Outcome& outcome) noexcept;
 void mutate_equipment(const middleware::web_service::Message& message,
                       bool unequip,
                       Outcome& outcome) noexcept;
