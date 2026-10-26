@@ -727,7 +727,6 @@ void shutdown() noexcept {
 
 #if defined(DAWN_ACTIVITY_RETIREMENT_TESTS)
 namespace test_support {
-
 void set_hook(Hook hook) noexcept {
     g_testHook.store(hook, std::memory_order_release);
 }

@@ -3,7 +3,6 @@
 #include "../coo/native_activity_clock.h"
 #include "../coo/object_service.h"
 #include "../coo/stall_diagnostics.h"
-
 namespace dawn::state::activity::beyond_infinity {
 bool contains(const Volume&,Point) noexcept;
 class Controller final : private coo::Services,private coo::MissionPorts<Frame> {

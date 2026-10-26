@@ -1,5 +1,4 @@
 #pragma once
-
 #include "card/ui_card_component.h"
 #include "filter/ui_filter_component.h"
 #include "label/ui_label_component.h"

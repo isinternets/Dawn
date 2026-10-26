@@ -242,7 +242,6 @@ bool hold(Held& held) noexcept {
     leave_exclusive();
     return false;
 }
-
 /** Resumes and releases every held thread. */
 void release(Held& held) noexcept {
     // Both locks are taken together, so either flag marks a hold that claimed the process.

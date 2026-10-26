@@ -17,7 +17,6 @@ struct NativeComponent {std::uint32_t definition,kind,offset;};
 std::uintptr_t image() noexcept {return reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));}
 template<class T> T at(const std::byte* bytes) noexcept {T v{};std::memcpy(&v,bytes,sizeof v);return v;}
 bool prefix(const std::byte* b,NativeComponent c) noexcept {return at<std::uint32_t>(b)==c.definition && at<std::uint32_t>(b+4)==c.kind && at<std::uint64_t>(b+8)==c.offset;}
-
 }
 void observe_native_object(void* raw) noexcept {
     const auto req=request();if(!req.frame.enabled) {return;}gn::Read read{image()};

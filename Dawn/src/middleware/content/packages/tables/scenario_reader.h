@@ -186,7 +186,6 @@ struct SliceEntry {
                                       const Array& objects,
                                       std::uint64_t index,
                                       std::uint32_t& tag) noexcept;
-
 /**
  * Reads a placed object's registry key.
  * @param blob Whole object bytes.

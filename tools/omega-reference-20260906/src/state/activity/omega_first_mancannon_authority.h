@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <cstring>
 #include <span>
-
 namespace dawn::state::activity::omega_first_mancannon {
 
 inline constexpr std::uint32_t kRegistry = 0x95FB2E01U;

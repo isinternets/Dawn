@@ -56,7 +56,6 @@ static_assert((kAccumulatorCapacity & (kAccumulatorCapacity - 1U)) == 0);
     return left.stemIndex != right.stemIndex ? left.stemIndex < right.stemIndex
                                              : left.value < right.value;
 }
-
 /** @param stem Stem index. @param value Name hash. @return First probe slot. */
 [[nodiscard]] std::size_t hash_slot(std::uint16_t stem, std::uint32_t value) noexcept {
     /** Fixed odd mixer keeps the power-of-two accumulator probe deterministic. */

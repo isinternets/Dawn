@@ -143,5 +143,4 @@ bool inventory(std::wstring_view directory,
     }
     return hash_inventory(occupied, fingerprintValue);
 }
-
 } // namespace dawn::state::content_manifest::scanner

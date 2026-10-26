@@ -54,7 +54,6 @@ template <typename Value>
     }
     return value;
 }
-
 [[nodiscard]] bool towerfall_forced(std::string_view& package) noexcept {
     namespace forced = state::activity::forced;
     if (!forced::override_active()) {

@@ -7,5 +7,4 @@ namespace dawn::core::runtime {
  * @return True when the loaded ntdll exports Wine's own version entry point.
  */
 [[nodiscard]] bool is_wine() noexcept;
-
 } // namespace dawn::core::runtime

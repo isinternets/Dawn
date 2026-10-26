@@ -118,7 +118,6 @@ struct MembershipSnapshot final {
 [[nodiscard]] constexpr std::size_t encoded_size(const MembershipSnapshot& snapshot) noexcept {
     return (meaningful_bits(snapshot) + 7U) / 8U;
 }
-
 /**
  * Encodes one full-player membership snapshot. No allocation.
  * @param snapshot Checked identity, revision, transition, and host-echo values.

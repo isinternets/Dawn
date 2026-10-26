@@ -1,5 +1,4 @@
 #pragma once
-
 namespace dawn::client::hooks::config_getter {
 
 /** @return Direct internal-linkage config URL getter body. */

@@ -6,7 +6,6 @@
 #include "../src/middleware/web_service/messages/opcode904/opcode904_codec.h"
 #include <cstdio>
 #include <cstdlib>
-
 // These derived flags have no acquired-bank mapping in installed 81319322.
 namespace dawn::state::build_data::vendors::services {
 Binding binding(bool,std::uint16_t) noexcept {return {};}

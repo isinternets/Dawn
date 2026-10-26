@@ -65,7 +65,6 @@ bool install() noexcept {
         finish_failed_install();
         return false;
     }
-
     g_handles = installed;
     for (std::size_t offset = 0; offset < installed.size(); ++offset) {
         g_originals[offset] = installed[offset].original;

@@ -6,7 +6,6 @@
 #include "../../core/logging/log.h"
 #include <cstdio>
 #include <mutex>
-
 namespace dawn::state::activity::gateway_intro {
 namespace native = omega_ending_transit;
 namespace cine = newlight::launchpad::cinematics;

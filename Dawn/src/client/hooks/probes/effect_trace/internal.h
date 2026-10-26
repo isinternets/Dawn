@@ -22,7 +22,6 @@ inline constexpr std::size_t kLineCapacity = 512;
  * thread never waits on the disk. Lines queued while the trace is not installed are dropped.
  */
 void emit(std::string_view line) noexcept;
-
 /** Formats one line and queues it. */
 template <typename... Args> void line(const char* format, Args... args) noexcept {
     std::array<char, kLineCapacity> buffer{};

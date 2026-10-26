@@ -30,7 +30,6 @@ enum class ManualError : std::uint8_t { none, activity, bubble, slice, spawn };
     return destination_name(value) != forced::profiles::kTowerfallPackageName
         || (index == 282 && rows[index].name() == "mission_reunion");
 }
-
 /** Exact destination/bubble/package membership; map-wide candidates are not proven arrival points. */
 [[nodiscard]] inline bool spawn_supported(const layouts::Definition& layout, std::uint8_t bubble,
                                          const spawns::NameHash& row) noexcept {

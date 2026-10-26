@@ -17,7 +17,6 @@ constexpr std::uint8_t kExecutableWidth = 3;
 /** The refusal reason is six bits. */
 constexpr std::uint8_t kReasonWidth = 6;
 } // namespace
-
 /** Reads the admission prefix of a join request. */
 bool read_join_request(bits::Reader& reader, JoinRequest& output) noexcept {
     std::uint64_t protocol = 0;

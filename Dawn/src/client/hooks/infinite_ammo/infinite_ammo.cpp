@@ -31,7 +31,6 @@ constexpr auto kReservesCall =
 /** Masked form of the magazine call site. */
 constexpr auto kMagazineCall =
     patterns::signature<patterns::signature_length(kMagazineCallText)>(kMagazineCallText);
-
 /** Offset of the call opcode inside each pattern above. */
 constexpr std::size_t kReservesCallOffset = 7;
 constexpr std::size_t kMagazineCallOffset = 6;

@@ -38,7 +38,6 @@ inline constexpr std::uint32_t kBossBegin=46,kBossRoom1Start=47,kBossRoom2Start=
     kBossRoom3Start=49,kBossRetreat2=50,kBossRetreat3=51,kBossDeath=52,
     kBossRoom1Exit=53,kBossRoom2Exit=54,kBossMinotaurSpawned=55,kBossMinotaurDead=56;
 inline constexpr std::uint32_t kMechanicCheckpointBase=64;   // + the region's own index
-
 /** One checkpoint the mission can select, as a mechanic argument the controller decodes. */
 [[nodiscard]] constexpr std::uint32_t checkpoint_argument(std::size_t index) noexcept {
     return kMechanicCheckpointBase+static_cast<std::uint32_t>(index);

@@ -391,7 +391,6 @@ bool append_equipment_roster_refresh_notification(
     return append_roster_appearance_frame(
         scratch, refresh, prepared, "equip_roster", key, nonce, response, written);
 }
-
 /** Appends the Family-3 character-only refresh owed by a socket change on equipped gear. */
 bool append_socket_roster_refresh_notification(Scratch& scratch,
                                                const queuez::RosterAppearanceRefresh& refresh,

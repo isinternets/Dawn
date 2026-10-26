@@ -34,7 +34,6 @@ constexpr std::size_t kPendingReadyOffset = 0x592E0U;
 constexpr std::size_t kPendingPayloadOffset = 0x592E8U;
 constexpr std::size_t kDecodedPayloadBytes = 0x650U;
 constexpr std::size_t kDecodedActivityIndexOffset = 0x6CU;
-
 using TypeOneClientApply = void(__fastcall*)(std::byte* activityClient,
                                              const std::byte* decoded) noexcept;
 

@@ -18,5 +18,4 @@ void draw_text() noexcept;
 
 /** Clears every selection at a UI lifecycle boundary. */
 void reset() noexcept;
-
 } // namespace dawn::core::ui::modules::logs::internal::filters

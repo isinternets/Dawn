@@ -5,7 +5,6 @@
 #include "../definition.h"
 
 namespace dawn::state::equipment::light::calculation {
-
 /**
  * Computes raw summary arrays and the selected character's merged weighted light values.
  * @param selectedCharacter Raw scores for the selected character.

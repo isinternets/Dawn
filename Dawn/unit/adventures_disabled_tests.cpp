@@ -1,7 +1,6 @@
 #include "server/runtime/activity/native_activity_profiles.h"
 #include <cstdio>
 #include <cstring>
-
 namespace activity=dawn::server::runtime::activity;
 namespace start=activity::adventure_start;
 namespace native=dawn::middleware::bap::activity_message::native;

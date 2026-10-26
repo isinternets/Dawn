@@ -3,7 +3,6 @@
 #include "transit_contacts.h"
 #include "navigation.h"
 #include <cmath>
-
 namespace dawn::state::activity::beyond_infinity {
 bool valid_document(const coo::script::Views& views) noexcept {
     return views.valid && views.missionId=="beyond_infinity" && views.profileId==kProfile.id

@@ -2,7 +2,6 @@
 
 // Compiles IDA-style signature text such as "48 8B ? C3" into fixed pattern bytes.
 // Everything here runs at compile time; malformed text fails the build.
-
 #include <array>
 #include <cstddef>
 #include <string_view>

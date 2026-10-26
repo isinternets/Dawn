@@ -3,7 +3,6 @@
 #include "../platform/sdk.h"
 
 namespace dawn::client::hooks::egress::extensions {
-
 /** Transmits file data only to a connected exact IPv4 redirect target. */
 BOOL PASCAL transmit_file(SOCKET socket,
                           HANDLE file,

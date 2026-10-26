@@ -8,7 +8,6 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-
 namespace tables=dawn::middleware::content::packages::tables;
 namespace route=tables::adventure;
 namespace authored=dawn::state::activity::coo::adventure::mercury;

@@ -11,5 +11,4 @@ namespace dawn::client::hooks::infinite_ammo {
 
 /** Detaches every detour. */
 void uninstall() noexcept;
-
 } // namespace dawn::client::hooks::infinite_ammo

@@ -1,5 +1,4 @@
 #include "activity_high_water_validator.h"
-
 namespace dawn::middleware::bap::activity_message::high_water {
 
 /** Checks one opaque high-water body without reading any payload byte. */

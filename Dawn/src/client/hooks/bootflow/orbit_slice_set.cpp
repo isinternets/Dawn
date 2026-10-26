@@ -65,7 +65,6 @@ std::uint32_t* __fastcall pick_target(LoaderContext* context, std::uint32_t* sel
     }
     return result;
 }
-
 } // namespace
 
 /** Attaches the picker so the orbit target is found. */

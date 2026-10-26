@@ -636,7 +636,6 @@ RawObservationResult validate_raw_observation(const RouteCaptureRecord& record) 
     }
     return RawObservationResult::retained;
 }
-
 RouteClosureResult close_route(const RouteCaptureRecord& record,
                                OwnerScopeToken current_scope) noexcept {
     if (validate_raw_observation(record) != RawObservationResult::retained) {

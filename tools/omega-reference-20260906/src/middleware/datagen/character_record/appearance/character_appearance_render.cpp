@@ -178,5 +178,4 @@ bool apply_render(const family4::loadout::ResolvedInstances& instances,
     }
     return true;
 }
-
 } // namespace dawn::middleware::datagen::character_record::appearance

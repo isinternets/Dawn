@@ -96,5 +96,4 @@ inline bool exceeds(const LeaseMask& selected, const LeaseMask& available) noexc
     }
     return false;
 }
-
 } // namespace dawn::state::activity::entity_slots::transactions

@@ -65,7 +65,6 @@ void write_memory_order(std::span<std::byte> output,
     }
     return value;
 }
-
 /**
  * Builds the record's initialization vector.
  * @param sequence Record sequence number.

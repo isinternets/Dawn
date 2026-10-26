@@ -52,7 +52,6 @@ inline constexpr std::array<WaveGroup,55> kWaves{{
     {kVexRegistry,15,{2,0},false,3,1},{kVexRegistry,16,{2,0},false,3,1},
     {kVexRegistry,17,{3,0},false,3,2},{kVexRegistry,18,{3,0},false,3,2},{kVexRegistry,4,{1,0},true,3,2},
 }};
-
 static_assert([] {
     std::array<unsigned,3> totals{};
     for(std::size_t i=0;i<kWaves.size();++i) {

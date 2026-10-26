@@ -1,6 +1,5 @@
 #pragma once
 #include "ghost.h"
-
 namespace dawn::state::activity::newlight::launchpad::performances {
 namespace animation=ghost::animation;
 struct Nest {std::uint16_t slot,source;std::uint32_t sequence;};

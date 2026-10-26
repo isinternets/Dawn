@@ -34,7 +34,6 @@ constexpr std::uint8_t kPaddingBitCount = 6;
     }
     return true;
 }
-
 } // namespace
 
 /** Parses the fixed client-identity prefix into logical signed and identity fields. */

@@ -59,7 +59,6 @@ constexpr void finish(std::uint32_t& a, std::uint32_t& b, std::uint32_t& c) noex
 }
 
 } // namespace
-
 /** Hashes a run of 32-bit words. */
 std::uint32_t hash_words(std::span<const std::uint32_t> words, std::uint32_t initial) noexcept {
     std::uint32_t a = initial;

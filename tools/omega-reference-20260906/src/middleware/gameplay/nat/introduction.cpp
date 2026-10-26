@@ -12,7 +12,6 @@ constexpr std::byte kRequestType{13};
 constexpr std::byte kReplyType{12};
 
 } // namespace
-
 /** Turns one direct introduction request into its reply, in place. */
 bool make_introduction_reply(std::span<std::byte> datagram) noexcept {
     if (datagram.size() != kIntroductionSize || datagram[kTypeOffset] != kRequestType) {

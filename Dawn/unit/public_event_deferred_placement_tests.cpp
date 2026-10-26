@@ -133,7 +133,6 @@ void bridge_interface_cases(f::Ticket ticket){
     readable=false;check(!qualify(),"unreadable group rejected");readable=true;resolvable=false;check(!qualify(),"unmapped group rejected");resolvable=true;
     weakValid=false;check(!qualify(),"stale group serial rejected");weakValid=true;check(qualify(),"valid point qualification restored");
 }
-
 int main(int argc,char** argv){
     check(argc==3,"usage: native-deferred-fixture-directory package-output-directory");
     const std::filesystem::path fixtures=argv[1],packages=argv[2];

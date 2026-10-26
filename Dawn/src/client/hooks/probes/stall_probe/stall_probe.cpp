@@ -326,7 +326,6 @@ void dump_all_threads() noexcept {
     }
     (void)VirtualFree(memory, 0, MEM_RELEASE);
 }
-
 /**
  * Writes the one-line stall marker.
  * @param result "detected", "watchdog_reporting" or "recovered".

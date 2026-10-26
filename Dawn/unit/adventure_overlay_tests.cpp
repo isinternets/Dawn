@@ -9,7 +9,6 @@
 #include "server/runtime/activity/adventure_mercury_overlays.h"
 #include "server/runtime/activity/adventure_opening_publication.h"
 #include "middleware/encoding/bit_writer.h"
-
 namespace rec=dawn::state::build_data::cache::records;
 namespace overlay=dawn::server::runtime::activity::authored_overlay;
 namespace mercury=dawn::server::runtime::activity::adventure::mercury;

@@ -1820,7 +1820,6 @@ LONG WINAPI DetourTransactionCommitEx(_Out_opt_ PVOID **pppFailedPointer)
                           o->pbTarget[0], o->pbTarget[1], o->pbTarget[2], o->pbTarget[3],
                           o->pbTarget[4], o->pbTarget[5], o->pbTarget[6], o->pbTarget[7],
                           o->pbTarget[8], o->pbTarget[9], o->pbTarget[10], o->pbTarget[11]));
-
 #ifdef DETOURS_IA64
             ((DETOUR_IA64_BUNDLE*)o->pbTarget)
                 ->SetBrl((UINT64)&o->pTrampoline->bAllocFrame);

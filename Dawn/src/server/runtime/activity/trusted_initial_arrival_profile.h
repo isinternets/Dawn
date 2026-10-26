@@ -5,7 +5,6 @@
 #include "../../../state/activity/destination/definition.h"
 #include "../../../state/build_data/activities/activity_catalog.h"
 #include "../../../state/build_data/scenarios/definition.h"
-
 namespace dawn::server::runtime::activity::initial_arrival {
 
 /** A reviewed initial policy tied to one public identity and installed content layout. */

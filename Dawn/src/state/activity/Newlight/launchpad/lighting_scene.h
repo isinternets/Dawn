@@ -1,6 +1,5 @@
 #pragma once
 #include "lighting_placed.h"
-
 namespace dawn::state::activity::newlight::launchpad::lighting::scene {
 // Installed level 814F0033, row 0: prefab 80F6504D. This is the actual
 // eight-bank light spectacle, not the nearby breach_group flicker controller.

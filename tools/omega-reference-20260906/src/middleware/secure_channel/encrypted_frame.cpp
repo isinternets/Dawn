@@ -125,7 +125,6 @@ bool open_frame(std::span<const std::byte, state::kAesKeySize> key,
     written = payload.size() - kFrameTagSize;
     return true;
 }
-
 /** Increments a BAP nonce as a little-endian fixed-width counter. */
 void advance_nonce(std::span<std::byte, state::kBapNonceSize> nonce) noexcept {
     for (std::byte& value : nonce) {

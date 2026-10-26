@@ -3,7 +3,6 @@
 #include <array>
 #include <cstddef>
 #include <span>
-
 #include "../../../internal.h"
 #include "../../activity_message/definition.h"
 

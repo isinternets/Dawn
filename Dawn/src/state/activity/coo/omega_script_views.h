@@ -1,7 +1,6 @@
 #pragma once
 #include "script_views.h"
 #include <atomic>
-
 namespace dawn::state::activity::coo::script {
 // Omega's existing native admission bridge pins one immutable document for the
 // process. The generic loader has no global state; other owners retain their

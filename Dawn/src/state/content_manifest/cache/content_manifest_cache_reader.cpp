@@ -65,7 +65,6 @@ void clear_rows(std::span<Row> rows, std::size_t& count) noexcept {
         SecureZeroMemory(rows.data(), rows.size_bytes());
     }
 }
-
 } // namespace
 
 /** Loads and checks one exact cache into fixed caller storage. */

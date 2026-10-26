@@ -86,7 +86,6 @@ void population_service_cases() {
     sense.sourceDelta.consumed[0]=1;
     observation=service.observe(15,sense);
     CHECK(observation && observation->consumedKnown && observation->scalar[3]==1);
-
     // A retained open-world source keeps reporting after the player crosses
     // into another bubble. Only the explicitly retained path accepts that
     // report, and it still requires a started exact source and generation.

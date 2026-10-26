@@ -5,7 +5,6 @@
 #include <span>
 
 #include "definition.h"
-
 namespace dawn::state::build_data::items::socket_plugs {
 
 /** Clears every exact ordinary-socket rule, pool, and member under one catalog lock. */

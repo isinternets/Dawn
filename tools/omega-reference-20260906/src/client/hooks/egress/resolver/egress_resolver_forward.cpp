@@ -34,7 +34,6 @@ template <typename AddressInfo>
 }
 
 } // namespace
-
 /** Maps a synchronous ANSI lookup to the numeric redirect target of its requested family. */
 INT WSAAPI address_info_a(PCSTR node,
                           PCSTR service,

@@ -252,7 +252,6 @@ struct SocketEntryTableRecord {
     /** Entry kind per entry. Kind 34 is the super lane. */
     std::array<std::uint8_t, socket_entry_lists::kEntryCapacity> kinds{};
 };
-
 /** Disk form of one destination's extracted bubble layout and roster groups. */
 struct ScenarioRecord {
     std::array<char, scenarios::kNameCapacity> name{};

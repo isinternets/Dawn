@@ -1,7 +1,6 @@
 #pragma once
 
 namespace dawn::client::hooks::bootflow::texture_override {
-
 /**
  * Replaces selected decoded bootflow texture entries by TagHash with DDS data embedded in Dawn.
  * The stock package remains registered and unchanged.

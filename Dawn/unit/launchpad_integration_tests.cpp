@@ -25,7 +25,6 @@ static unsigned checks{};
 #include "launchpad_shutter_tests.h"
 #include "launchpad_lighting_placed_tests.h"
 #include "launchpad_lighting_scene_tests.h"
-
 void verify_packet(const lp::Frame& frame) {
     namespace wire=dawn::middleware::bap::activity_message::sensor_auth_update;
     namespace roster=dawn::server::bap::encrypted::push::activity::launchpad_roster;

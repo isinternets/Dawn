@@ -10,7 +10,6 @@ Request parse(std::span<const std::byte> input) noexcept {
     if (!parse_root(input, root)) {
         return {};
     }
-
     Request parsed;
     parsed.kind = root.kind;
     parsed.hasRequestNonce = root.hasRequestNonce;

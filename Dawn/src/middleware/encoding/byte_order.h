@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
-
 namespace dawn::middleware::encoding {
 
 /** Encoded 16-bit wire integer width. */
