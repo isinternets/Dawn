@@ -1,0 +1,7 @@
+{
+  "name": "tower_vault",
+  "width": 2,
+  "height": 2,
+  "material": "minecraft:iron_block",
+  "controller": "tower_vault_2x2_piston_door.mcfunction"
+}
