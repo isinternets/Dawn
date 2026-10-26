@@ -91,6 +91,8 @@ struct ServiceOutcome {
     queuez::ChangeCharacter changeCharacter{};
     bool hasSelectCharacter{};
     queuez::SelectCharacter selectCharacter{};
+    /** A create or delete request changed the roster, so the requesting peer needs a full refresh. */
+    bool rosterChanged{};
     /** One service owns at most one independently versioned transaction. */
     using Transaction = std::variant<std::monostate,
                                      state::activity::PendingAllocation,

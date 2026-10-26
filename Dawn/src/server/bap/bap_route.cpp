@@ -97,7 +97,10 @@ void retire_session_activity_locked(Session& session) noexcept {
     }
 }
 
-/** Arms every other active peer after one shared-account transaction is published. */
+/**
+ * Arms every other active peer after one shared-account transaction is published. The origin
+ * already carries the transaction in its own reply, so it is armed only when that reply could not.
+ */
 void publish_account_mutation(Session& origin) noexcept {
     origin.accountMutationPublished = false;
     g_accountGeneration = g_accountGeneration == (std::numeric_limits<std::uint64_t>::max)()
@@ -105,7 +108,9 @@ void publish_account_mutation(Session& origin) noexcept {
                               : g_accountGeneration + 1;
     origin.accountGeneration = g_accountGeneration;
     origin.accountResyncGeneration = g_accountGeneration;
-    origin.accountResyncArmed = false;
+    origin.accountResyncArmed = origin.accountResyncSelf;
+    origin.accountResyncFailures = 0;
+    origin.accountResyncSelf = false;
     std::size_t armed = 0;
     for (auto& peer : g_sessions) {
         if (&peer == &origin || peer.id == 0 || !peer.authenticated || !peer.queuez.family4Active) {

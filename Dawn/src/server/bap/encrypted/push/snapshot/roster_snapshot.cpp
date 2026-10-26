@@ -144,8 +144,10 @@ bool prepare_roster_appearance_refresh(Scratch& scratch,
         return false;
     }
     account.characters[characterIndex] = afterCharacter;
-    if (!state::account::valid(account)
-        || state::account::selected_character_soid(account) != refresh.characterSoid) {
+    // The refreshed character is the selected one. At character select nothing is selected yet, and
+    // a refresh then names the character that was just created.
+    const std::uint64_t selected = state::account::selected_character_soid(account);
+    if (!state::account::valid(account) || (selected != 0 && selected != refresh.characterSoid)) {
         return false;
     }
 

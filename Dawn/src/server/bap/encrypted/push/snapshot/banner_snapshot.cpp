@@ -31,7 +31,7 @@ bool prepare_banner(Scratch& scratch,
                     std::uint64_t previousCharacter,
                     Prepared& prepared) noexcept {
     const Reservation reservation = reserve_prior(scratch, prepared);
-    const state::AccountState account = state::account_snapshot();
+    const state::AccountState account = state::banner_account_snapshot();
     if (reservation.rawWriteOffset > scratch.plaintext.size()) {
         return false;
     }

@@ -826,8 +826,17 @@ void observe_allocators(const AccountState& account) noexcept {
     return statement.ready()&&sqlite3_bind_text(statement.value,1,to,-1,SQLITE_TRANSIENT)==SQLITE_OK
         &&sqlite3_bind_text(statement.value,2,from,-1,SQLITE_TRANSIENT)==SQLITE_OK&&step_done(statement.value);
 }
+[[nodiscard]] bool delete_owner_rows(const char* table,const char* column,const char* owner) noexcept {
+    std::array<char,160> sql{};
+    const int count=std::snprintf(sql.data(),sql.size(),"DELETE FROM %s WHERE %s=?1",table,column);
+    if(count<=0||static_cast<std::size_t>(count)>=sql.size())return false;
+    Statement statement{sql.data()};
+    return statement.ready()&&sqlite3_bind_text(statement.value,1,owner,-1,SQLITE_TRANSIENT)==SQLITE_OK&&step_done(statement.value);
+}
 [[nodiscard]] bool migrate_owners(const AccountState& before,const AccountState& after) noexcept {
-    if(before.characterCount!=after.characterCount)return false;
+    // Only the owners `before` already holds are renamed. A character added by `after` has no rows
+    // to move yet, so the count may grow; it may not shrink, which would strand its rows.
+    if(after.characterCount<before.characterCount)return false;
     struct Mapping { std::array<char,17> before{},after{};std::array<char,4> temporary{};bool changed{}; };
     std::array<Mapping,kCharacterCapacity+1> mappings{};const std::size_t count=before.characterCount+1U;
     for(std::size_t i=0;i<count;++i) {
@@ -856,6 +865,24 @@ void observe_allocators(const AccountState& account) noexcept {
                   ||!update_column("reward_debts","character_soid",mappings[i].temporary.data(),mappings[i].after.data()))return false;
     }
     return true;
+}
+
+/**
+ * Puts the characters of a loaded account on the account key plus one plus their position, which is
+ * what sign-in rebases them to. Deleting a character leaves the later ones under their old keys for
+ * the rest of the session, so a save can hold a gap. The rows they own are renamed with them. An
+ * account that would not validate under those keys is left as it is.
+ */
+[[nodiscard]] bool canonicalize_character_keys(AccountState& account) noexcept {
+    bool canonical=true;
+    for(std::size_t i=0;i<account.characterCount;++i)
+        canonical=canonical&&account.characters[i].soid==account.primarySoid+1U+i;
+    if(canonical) return true;
+    static AccountState before{};
+    before=account;
+    for(std::size_t i=0;i<account.characterCount;++i) account.characters[i].soid=account.primarySoid+1U+i;
+    if(!account::valid(account)) {account=before;return true;}
+    return migrate_owners(before,account)&&write_account(account);
 }
 
 [[nodiscard]] bool write_mission(const MissionRecord& record) noexcept {
@@ -920,6 +947,7 @@ bool initialize(void* module,const AccountState& legacyAccount,const unlocks::Ta
         loadedAccount=legacyAccount;
     } else {
         if(!begin()||!migrate_schema(schema)||!load_metadata()||!read_account(loadedAccount)
+           ||!canonicalize_character_keys(loadedAccount)
            ||!read_unlocks(loadedAccount,loadedUnlocks)||!read_family5(loadedFamily5)
            ||!advance_reward_epoch()||!commit()) {
             rollback();log_failure("load");sqlite3_close_v2(database);database=nullptr;return false;
@@ -968,6 +996,37 @@ bool commit_account(const AccountState& before,const AccountState& after) noexce
     const std::int64_t previousRevision=accountRevision;
     if(!migrate_owners(before,after)||!write_account(after)||!advance_revision()||!commit()) {
         rollback();accountRevision=previousRevision;log_failure("commit_account");return false;
+    }
+    return true;
+}
+
+bool commit_character_removal(const AccountState& before,
+                              const AccountState& after,
+                              std::uint64_t removedSoid) noexcept {
+    Lock lock;
+    if(!account::valid(before)||!account::valid(after)||removedSoid==0
+       ||after.primarySoid!=before.primarySoid||after.characterCount+1U!=before.characterCount) return false;
+    // Everything but the removed character must carry over untouched, so no owner is renamed.
+    std::size_t kept=0;bool found=false;
+    for(std::size_t i=0;i<before.characterCount;++i) {
+        if(before.characters[i].soid==removedSoid){found=true;continue;}
+        if(kept>=after.characterCount||after.characters[kept].soid!=before.characters[i].soid)return false;
+        ++kept;
+    }
+    if(!found||kept!=after.characterCount) return false;
+    if(memoryOnly) return true;
+    if(database==nullptr||!begin()) return false;
+    const std::int64_t previousRevision=accountRevision;
+    std::array<char,17> owner{};
+    bool purged=format_u64(removedSoid,owner);
+    // An owner row that outlived its character would be inherited by the next one created under the
+    // same key, and a mission row would also break the character foreign key at commit.
+    for(const char* table:{"durable_flags","durable_objectives","durable_progressions"})
+        purged=purged&&delete_owner_rows(table,"owner_soid",owner.data());
+    purged=purged&&delete_owner_rows("missions","character_soid",owner.data())
+        &&delete_owner_rows("reward_debts","character_soid",owner.data());
+    if(!purged||!write_account(after)||!advance_revision()||!commit()) {
+        rollback();accountRevision=previousRevision;log_failure("commit_character_removal");return false;
     }
     return true;
 }

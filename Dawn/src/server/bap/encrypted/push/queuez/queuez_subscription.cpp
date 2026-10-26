@@ -171,7 +171,7 @@ void append_queuez_notification(Scratch& scratch,
     if (subscription.familyType == queuez::kBannerFamilyType) {
         // Family zero's version and flags come from this peer's own ladder, so it is prepared
         // here instead of through the generic initial-snapshot path.
-        const state::AccountState account = state::account_snapshot();
+        const state::AccountState account = state::banner_account_snapshot();
         // The first character stands in before any pick. The record accepts a snapshot only in the
         // short window the subscribe opens, so holding the answer for the pick spends that window
         // and the subscription times out. The pick moves the pair afterwards.

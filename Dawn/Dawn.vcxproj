@@ -840,6 +840,7 @@
     <ClCompile Include="src\middleware\web_service\messages\opcode503\opcode503_codec.cpp" />
     <ClCompile Include="src\middleware\web_service\messages\opcode206_codec.cpp" />
     <ClCompile Include="src\middleware\web_service\messages\opcode501_codec.cpp" />
+    <ClCompile Include="src\middleware\web_service\messages\opcode502_codec.cpp" />
     <ClCompile Include="src\middleware\web_service\messages\opcode505\opcode505_codec.cpp" />
     <ClCompile Include="src\middleware\web_service\messages\opcode601\opcode601_codec.cpp" />
     <ClCompile Include="src\core\settings\state_settings.cpp" />
@@ -1352,6 +1353,7 @@
     <ClInclude Include="src\middleware\web_service\messages\opcode503.h" />
     <ClInclude Include="src\middleware\web_service\messages\opcode206.h" />
     <ClInclude Include="src\middleware\web_service\messages\opcode501_codec.h" />
+    <ClInclude Include="src\middleware\web_service\messages\opcode502.h" />
     <ClInclude Include="src\middleware\web_service\messages\opcode505\opcode505_codec.h" />
     <ClInclude Include="src\middleware\web_service\messages\opcode601\opcode601_codec.h" />
     <ClInclude Include="src\middleware\datagen\family4\account\selection_patch\account_selection_patch_encoder.h" />
