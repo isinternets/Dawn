@@ -2,10 +2,9 @@
 
 ## Security maintainers
 
-Dawn's security maintainers are [@chnsw](https://github.com/chnsw), [@TempAccountNull](https://github.com/TempAccountNull), [@flummoxed](https://github.com/di-donna) and
-[@isinternets](https://github.com/isinternets).
+Dawn's security maintainers are [@chnsw](https://github.com/chnsw), [@TempAccountNull](https://github.com/TempAccountNull), [@flummoxed](https://github.com/di-donna), [@isinternets](https://github.com/isinternets) and [@ocucor](https://github.com/ocucor/).
 
-[@chnsw](https://github.com/chnsw), [@flummoxed](https://github.com/di-donna), [@TempAccountNull](https://github.com/TempAccountNull) and [@isinternets](https://github.com/isinternets)
+[@chnsw](https://github.com/chnsw), [@flummoxed](https://github.com/di-donna), [@TempAccountNull](https://github.com/TempAccountNull), [@isinternets](https://github.com/isinternets) and [@ocucor](https://github.com/ocucor/)
 handle Dawn's client security reviews, vulnerability triage, and security fixes,
 coordinating with other project maintainers where necessary.
 
