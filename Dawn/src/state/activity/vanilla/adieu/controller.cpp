@@ -167,7 +167,7 @@ void Controller::cues() noexcept {
 
             frame_.healed=true;frame_.stage=Stage::escape;
             for(const auto slot:{0,2,7,8,19}) effect(static_cast<std::uint16_t>(slot),false);
-            effect(3,true,true);effect(12,true,true);effect(6,true);objective(2);
+            effect(3,true,true);effect(12,true,true);effect(6,true);objective(2);music(1);
             // Control returns before the reunion speech finishes. Keep its
             // selector and Ghost alive until the separate voice boundary below.
         }
@@ -176,9 +176,9 @@ void Controller::cues() noexcept {
         // The selector can destroy itself in the same tick as its last action,
         // losing both that speech sample and the departure event. Its qualified
         // native completed flag also establishes the end of the scene.
-        if(frame_.healed && (frame_.native.output(kFinding,kReunionDepartureCue) || (finding && finding->completed))
-            && reunionVoiceUntil_ && now_>=reunionVoiceUntil_) retire_ghost();
-        if (frame_.healed && once("tv_dlg_city_exit")) { speech(20); music(1);  };
+        if (frame_.healed && (frame_.native.output(kFinding, kReunionDepartureCue) || (finding && finding->completed))
+            && reunionVoiceUntil_ && now_ >= reunionVoiceUntil_) { retire_ghost(); }
+        if (frame_.healed && once("tv_dlg_city_exit")) { speech(20);   };
         if(frame_.ghostRetired && seen("tv_goto_climb") && cinematic_.transition(owner(),1,now_)) {retire_section();effect(14,true);hasPrevious_=false;}
     } else if(frame_.stage==Stage::outskirts || frame_.stage==Stage::campCombat) {
         if(once("tv_falcon_climb")) request_scene(96,0x159DFE1B);
@@ -194,7 +194,7 @@ void Controller::cues() noexcept {
     } else if(frame_.stage<=Stage::canyon) {
         if(once("tv_falcon_1")) request_scene(95,0x159DFE1B);
         if(once("tv_falcon_3")) request_scene(98,0x159DFE1B);
-        if(once("tv_music_traveler")) music(4);
+        if(once("tv_music_traveler")) music(4); // there should be a cabal ship here!
         if(once("tv_beast_spawn")) {frame_.stage=Stage::bowlCombat;music(5);combat(12);request_scene(103,0x286C14D7);}
         // The authored route out of the bowl remains traversable. Reaching it
         // advances the escape without inventing deaths for surviving enemies.
