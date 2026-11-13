@@ -25,7 +25,7 @@ enum class Mechanic : std::uint32_t { restrict=1,allow,finishSection,arm,disarm,
 // authored music volumes point at are used positionally and marked inferred.
 namespace music_section {
 inline constexpr std::uint8_t underwatchRuins=0,firstCabal=1,afterCayde=3,shaxxDoor=4,firstPod=6,
-    cabalShipReveal=7 /* inferred */,plazaCabalShip=8 /* inferred */,leavingPlaza=12,battleshipDeck=16,battleshipSabotage=17,run=18,ending=19,
+    cabalShipReveal=8 /* inferred */, goingToPlaza=10, plazaCabalShip=11 /* manually tested, you'd better believe it */,leavingPlaza=12,ikoraAppearance=13,battleshipDeck=16,battleshipSabotage=17,run=18,ending=19,
     count=20,none=0xFF;
 }
 // Observations the controller derives from several receipts rather than one asset.

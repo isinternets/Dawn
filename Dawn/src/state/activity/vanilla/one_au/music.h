@@ -25,7 +25,7 @@ constexpr int section(const Frame& f) noexcept {
     case Section::access:return f.presentation.event==kObjectives[18]?21:19;
     case Section::exchangers:return f.interactions[5].destroyed || f.interactions[6].destroyed?24:23;
     case Section::core:return 26;
-    case Section::escape:return 27;
+    case Section::escape:return 27; // needs an outro with 28 but currently no way to trigger one
     default:return -1;
     }
 }
