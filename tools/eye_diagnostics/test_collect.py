@@ -1,8 +1,12 @@
 """Integrity tests: do not allow stale logs or partial calls to imply a diagnosis."""
 import json
+import contextlib
+import io
 from pathlib import Path
+import tempfile
 import unittest
-from collect import analyze
+from unittest.mock import patch
+from collect import analyze, main, sha
 
 CONTRACT = json.loads((Path(__file__).parent / "contract.json").read_text())
 MANIFEST = {"build_id": "ABC", "dll_sha256": "DEF", "source_sha256": "123"}
@@ -46,6 +50,51 @@ class CaptureTests(unittest.TestCase):
         entry = "core t=5 ev=omega_mission stage=eye_damage_enter run=1 epoch=1 trace=2\n"
         end = "core t=6 ev=omega_mission stage=eye_damage_exit run=1 epoch=1 trace=2\n"
         self.assertFalse(self.parse(HEADER + entry + end + end)["evidence_valid"])
+
+    def test_reserved_event_fields_rejected(self):
+        for field in ("line=999", "t_ms=0", "t_ms=invalid"):
+            with self.subTest(field=field):
+                result = self.parse(HEADER +
+                    "core t=5 ev=omega_mission stage=eye_health_sample crossed=1 " + field + "\n")
+                self.assertFalse(result["evidence_valid"])
+                self.assertFalse(result["observed"]["qualified_health_crossing_reported"])
+                self.assertTrue(any("Line 3: reserved event field" in issue
+                                    for issue in result["integrity_issues"]))
+
+    def test_event_provenance_and_numeric_order_preserved(self):
+        result = self.parse(HEADER +
+            "core t=10 ev=omega_mission stage=eye_health_sample crossed=0\n" +
+            "core t=3 ev=omega_mission stage=eye_clip_cursor clip=80F45179\n")
+        self.assertTrue(result["evidence_valid"])
+        self.assertEqual([(event["line"], event["t_ms"]) for event in result["events"]],
+                         [(2, 2), (4, 3), (3, 10)])
+
+    def test_reserved_field_capture_archives_raw_log_and_returns_integrity_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidate = root / "candidate"
+            (candidate / "out").mkdir(parents=True)
+            # The collector only hashes these synthetic bytes; nothing is loaded.
+            dll = b"synthetic collector fixture"
+            (candidate / "out/steam_api64.dll").write_bytes(dll)
+            manifest = {**MANIFEST, "dll_sha256": sha(dll)}
+            (candidate / "candidate-manifest.json").write_text(json.dumps(manifest))
+            raw = (HEADER.replace("module_sha256=DEF", "module_sha256=" + sha(dll)) +
+                   "core t=5 ev=omega_mission stage=eye_health_sample crossed=1 t_ms=bad\n").encode()
+            log = root / "input.log"
+            log.write_bytes(raw)
+            output = root / "capture"
+            with patch("sys.argv", ["collect.py", "--candidate", str(candidate),
+                                    "--log", str(log), "--output", str(output)]), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(main(), 3)
+            self.assertEqual((output / "dawn.log").read_bytes(), raw)
+            status = json.loads((output / "capture-status.json").read_text())
+            self.assertFalse(status["evidence_valid"])
+            self.assertEqual(status["log_sha256"], sha(raw))
+            timeline = [json.loads(line) for line in
+                        (output / "timeline.jsonl").read_text().splitlines()]
+            self.assertEqual([(event["line"], event["t_ms"]) for event in timeline], [(2, 2)])
 
 
 if __name__ == "__main__":

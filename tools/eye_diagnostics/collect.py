@@ -38,6 +38,12 @@ def analyze(raw: bytes, manifest: dict, contract: dict) -> dict:
             installs.append(fields)
         if fields.get("ev") not in ("omega_mission", "omega_reveal"):
             continue
+        # These fields belong to the collector, not the input log. Accepting
+        # them would replace provenance or mix strings into numeric sort keys.
+        reserved = {"line", "t_ms"}.intersection(fields)
+        if reserved:
+            issues.append(f"Line {number}: reserved event field(s): {', '.join(sorted(reserved))}.")
+            continue
         try:
             time = int(fields["t"])
             if time < 0:
