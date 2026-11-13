@@ -23,6 +23,10 @@ struct HomecomingRun {
     std::array<std::uint64_t,3> waveClearedAt{};
     std::uint64_t shaxxSpeechAt{};
     unsigned grants{},cinemas{},lastAssault{},turbineTicks{};
+    // Bazaar area: Ikora's blasted Cabal and one bazaar Cabal never die (stuck
+    // behind the door or out of reach). The door and the Hawk follow the player.
+    bool stuckArea{},ikoraSurvivors{},doorHeld{},doorOpened{},bazaarSurvivor{},landingHeld{},landed{};
+    unsigned doorWait{},landingWait{};
     explicit HomecomingRun(std::uint64_t id):run(id) {check(c->select(run,now),"simulation selects a fresh mission");}
     void movie() {
         const auto s=c->frame().cinematic;const auto owner=c->owner();
@@ -105,6 +109,8 @@ struct HomecomingRun {
         static_cast<void>(c->device(owner,a,d));
     }
     void clear(m::Cohort id) {
+        // In the stuck-area run these enemies can never be killed.
+        if(stuckArea && (id==m::Cohort::ikoraCabal || id==m::Cohort::bazaarAll)) {return;}
         for(const auto member:m::kCohorts[static_cast<std::size_t>(id)].members) {
             const auto a=m::asset(member.registry,1,member.slot);const auto i=m::spawn_index(a);
             const auto& n=c->frame().native[m::asset_index(a)];
@@ -137,6 +143,21 @@ struct HomecomingRun {
             const unsigned wave=id==m::Cohort::wave1?0U:id==m::Cohort::wave2?1U:2U;
             if(!waveClearedAt[wave]) waveClearedAt[wave]=now;
         }
+    }
+    // Admit every expected actor of a cohort; only the first `deaths` of them die.
+    void field(m::Cohort id,unsigned deaths) {
+        unsigned n{};
+        for(const auto member:m::kCohorts[static_cast<std::size_t>(id)].members) {
+            const auto a=m::asset(member.registry,1,member.slot);const auto i=m::spawn_index(a);
+            const auto& state=c->frame().native[m::asset_index(a)];
+            check(state.active && !state.sourceCleared,"stuck-area sources are fielded and not yet cleared");
+            for(unsigned j=0;j<m::expected(m::kSpawns[i]);++j,++n) {
+                const m::EnemyReceipt r{run,static_cast<std::uint32_t>((i+1)*32+j),static_cast<std::uint32_t>(10000+i),state.generation,member.slot,member.registry};
+                check(c->admitted(r),"stuck-area actor is admitted");
+                if(n<deaths) check(c->died(r),"stuck-area actor dies");
+            }
+        }
+        check(n>deaths,"at least one stuck-area actor stays alive");
     }
     void checkpoint_batches() {
         const auto& f=c->frame();
@@ -307,6 +328,26 @@ struct HomecomingRun {
                 check(c->ghost(c->owner(),m::kConsoleLink,{true,.5F,generation}),"scan reports actual progress");
                 check(c->ghost(c->owner(),m::kConsoleLink,{false,1.F,generation}),"scan completes on matching inactive receipt");return;
             }
+            case m::Milestone::bazaarDoor: {
+                if(!stuckArea) {clear(m::Cohort::ikoraCabal);return;}
+                if(!ikoraSurvivors) {field(m::Cohort::ikoraCabal,3);ikoraSurvivors=true;}
+                check(!c->frame().native[m::asset_index(m::kBazaarDoor)].managed,
+                    "the bazaar door stays shut until Ikora's Cabal die or the player reaches it");
+                if(++doorWait<200) return;
+                doorHeld=true;visit(m::trigger_area(m::kBoulevard,"pt_bazaar"));return;
+            }
+            case m::Milestone::bazaarCrossed: {
+                if(!stuckArea) {clear(m::Cohort::bazaarAll);return;}
+                if(!bazaarSurvivor) {
+                    unsigned total{};
+                    for(const auto member:m::kBazaarAll) total+=m::expected(m::kSpawns[m::spawn_index(m::asset(member.registry,1,member.slot))]);
+                    field(m::Cohort::bazaarAll,total-1);bazaarSurvivor=true;
+                }
+                check(!c->frame().native[m::asset_index(m::asset(m::kBoulevard,4,12))].desired,
+                    "Holliday does not land while a bazaar Cabal lives and the player is short of the far end");
+                if(++landingWait<200) return;
+                landingHeld=true;visit(m::trigger_area(m::kBoulevard,"pt_bazaar_2"));return;
+            }
             default:return; // Turbines are supplied in C/A/B order below.
             }
         }
@@ -384,6 +425,9 @@ struct HomecomingRun {
             if(a==m::trigger_area(m::kUnderwatch,"pt_postgun") && !postGunAtDoor) {
                 return; // Hold the player back until the door beat has already started the fight.
             }
+            if(stuckArea && !doorHeld && (a==m::trigger_area(m::kBoulevard,"pt_bazaar") || a==m::volume_named(m::kBoulevardRoute,"tv_bazaar"))) {
+                return; // Hold the player short of the bazaar door while Ikora's Cabal live.
+            }
             if(a==m::trigger_area(m::kShipRoute,"pt_destroy_battleship")) {
                 const auto& f=c->frame();
                 check(f.presentation.event!=m::kObjectives[11],"reactor visual preload does not publish the chamber objective");
@@ -416,6 +460,18 @@ struct HomecomingRun {
             now+=250;movie();check(entry.update(*c,run,now,true).enabled,"simulation advances the selected run");
             const auto& f=c->frame();check(f.enabled && !f.fault,"route has no rejected commands");sections.set(f.section);
             checkpoint_batches();
+            if(stuckArea && f.section==static_cast<unsigned>(m::Section::boulevard)) {
+                if(!doorOpened && f.native[m::asset_index(m::kBazaarDoor)].managed) {
+                    doorOpened=true;
+                    check(doorHeld && ikoraSurvivors,"the bazaar door opens on the player's arrival, not on an Ikora Cabal kill count");
+                    check(!f.native[m::asset_index(m::asset(m::kBoulevard,1,22))].sourceCleared,
+                        "Ikora's fourth blasted Cabal is still alive when the door opens");
+                }
+                if(!landed && f.native[m::asset_index(m::asset(m::kBoulevard,4,12))].desired) {
+                    landed=true;
+                    check(landingHeld && bazaarSurvivor,"Holliday lands when the player reaches the far end, with a bazaar Cabal still alive");
+                }
+            }
             if(f.assaultsRepelled!=lastAssault) {
                 check(f.assaultsRepelled==lastAssault+1,"assault counter advances one completed wave at a time");lastAssault=f.assaultsRepelled;
                 check(waveClearedAt[lastAssault-1] && now-waveClearedAt[lastAssault-1]<=m::kSettleMs+500,
@@ -599,6 +655,11 @@ static void progression() {
             "revival requires completed animation followed by active authored idle");
     }
     HomecomingRun run(201);run.play();
+    // The bazaar area must finish even when its enemies never die: the door opens
+    // when the player reaches it and Holliday lands at the bazaar's far end.
+    HomecomingRun stuck(206);stuck.stuckArea=true;stuck.play();
+    check(stuck.ikoraSurvivors && stuck.doorHeld && stuck.doorOpened && stuck.bazaarSurvivor && stuck.landingHeld && stuck.landed,
+        "a bazaar area whose enemies cannot be killed still opens the door and brings Holliday");
 }
 static void centurion_spawn_regression() {
     HomecomingRun run(202);

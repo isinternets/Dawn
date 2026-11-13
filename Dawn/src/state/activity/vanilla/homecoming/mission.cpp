@@ -266,11 +266,15 @@ Mission::Mission() noexcept {
     auto placed=boulevard.add("bazaar sighting report",a,{speech(74)});
     a=boulevard.add("bazaar entry",arrival,{visit(kBoulevard,"pt_bazaar")});
     auto entered=boulevard.add("Holliday inbound",a,{speech(75),objective(10)});
-    a=boulevard.add("Ikora's Cabal blasted",blast,{cleared(Cohort::ikoraCabal)});
+    // The bazaar door opens once Ikora's Cabal are dead or the player reaches it. A
+    // blasted Cabal that survives, or a squad fielded behind the closed door that
+    // cannot reach the player, would otherwise hold the door shut for good.
+    a=boulevard.add("bazaar door reached",blast,{reached(Milestone::bazaarDoor)});
     b=boulevard.add("bazaar door opens",a,{device(kBoulevard,9,1.F)});
     c=boulevard.add("bazaar door open",b,{posed(kBoulevard,9,1.F)});
     boulevard.add("bazaar breach",c,{sequence(kBoulevard,33),object(kBoulevard,25,false),object(kBoulevard,27,false),control(Mechanic::releaseDoor)});
-    a=boulevard.add("bazaar cleared",placed|entered,{cleared(Cohort::bazaarAll)});
+    // Holliday lands once the bazaar is cleared or the player reaches its far end.
+    a=boulevard.add("bazaar crossed",placed|entered,{reached(Milestone::bazaarCrossed)});
     b=boulevard.add("Hawk",a,{object(kBoulevard,12)});
     c=boulevard.add("Hawk present",b,{present(kBoulevard,12)});
     a=boulevard.add("Holliday arrives",c,{speech(76)});

@@ -506,6 +506,8 @@ bool Controller::observed(const coo::CommandSpec& s) const noexcept {
         case Milestone::weaponGranted:return frame_.weaponGranted;
         case Milestone::turbineFirst:return std::count(frame_.generatorDown.begin(),frame_.generatorDown.end(),true)>=1;
         case Milestone::turbineSecond:return std::count(frame_.generatorDown.begin(),frame_.generatorDown.end(),true)>=2;
+        case Milestone::bazaarDoor:return settled(Cohort::ikoraCabal) || visited(trigger_area(kBoulevard,"pt_bazaar"));
+        case Milestone::bazaarCrossed:return settled(Cohort::bazaarAll) || visited(trigger_area(kBoulevard,"pt_bazaar_2"));
         default:return false;
         }
     }

@@ -1159,3 +1159,37 @@ game was closed at 09:43 EDT. Root and bin/x64 DLL/PDB pairs were backed up and
 hash-verified; no scripts/settings changed and no relaunch occurred. See that
 stage's installation.json for the backup and file hashes. Gameplay performance
 acceptance is still pending; disabling the suspect probe is not an A/B proof.
+
+## Tower North bazaar door and Holliday's landing (1.7.3)
+
+Report: after Ikora's Nova Bomb and "Board the command ship", the bazaar door in
+Tower North stayed shut, so the mission could not continue. The recording shows
+the same stall on three approaches, each with different enemies: an empty room in
+front of the closed door, then Incendiors and Legionaries fighting at the door
+after backtracking, then an Incendior standing in the door alcove.
+
+Cause: the door's only open condition was a kill count. "Ikora's Cabal blasted"
+waited for all four scripted Cabal (boulevard 19-22) to be admitted and confirmed
+dead, but nothing guarantees that: a Cabal that survives the blast, stands behind
+o_invisible_character_blocker (released only by the breach itself), or is
+re-streamed after backtracking keeps the cohort open forever. Holliday's landing
+had the same shape: it waited for all fifteen bazaar actors, including the
+Incendiors (sq_flame) that retail brings through that door, which cannot reach
+the player while it is shut.
+
+Fix: two controller milestones replace the kill-only waits.
+- bazaarDoor: Ikora's Cabal are confirmed dead, or the player has reached the
+  door room (pt_bazaar, volume 77). The breach sequence, blocker release and
+  native door-state handoff are unchanged.
+- bazaarCrossed: the bazaar squads are dead, or the player has reached the far
+  end of the bazaar (pt_bazaar_2, volume 88). The Hawk, Holliday's line and the
+  pickup trigger are unchanged.
+This matches the retail flow, where the door is blown open as the player arrives
+and Holliday lands whether or not the Cabal are dead. Both still wait for Ikora's
+Nova Bomb and the bazaar route triggers; enemy spawning and scenes are unchanged.
+
+Verification: a second full native-receipt route runs with Ikora's fourth Cabal
+and one bazaar Cabal alive for the rest of the mission. The door and the Hawk
+must stay unrequested for 50 simulated seconds while the player holds short, then
+follow the player's arrival. With the previous graph that route stalls at
+"Ikora's Cabal blasted". Homecoming Debug and Release each passed 304432 checks.

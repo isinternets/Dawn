@@ -29,7 +29,12 @@ inline constexpr std::uint8_t underwatchRuins=0,firstCabal=1,afterCayde=3,shaxxD
     count=20,none=0xFF;
 }
 // Observations the controller derives from several receipts rather than one asset.
-enum class Milestone : std::uint32_t { caydeNear=0x300,shaxxNear,consoleScanned,generatorA,generatorB,generatorC,weaponGranted,turbineFirst,turbineSecond };
+// bazaarDoor: Ikora's four blasted Cabal are dead, or the player has reached the
+// bazaar door (pt_bazaar). bazaarCrossed: the bazaar squads are dead, or the player
+// has reached its far end (pt_bazaar_2). Retail opens the door and lands the Hawk on
+// the player's arrival; no kill count in this area may hold the mission.
+enum class Milestone : std::uint32_t { caydeNear=0x300,shaxxNear,consoleScanned,generatorA,generatorB,generatorC,weaponGranted,turbineFirst,turbineSecond,
+    bazaarDoor,bazaarCrossed };
 enum class SceneEvent : std::uint32_t { started=1,completed,inputsApplied,performanceFinished,entryCue,combatOpeningReleased,combatDamageReleased,combatHeld };
 // Type-4 observation arguments.
 enum class ObjectEvent : std::uint32_t { present=1,used };
