@@ -44,7 +44,7 @@ BEGIN
         // 0409 is US English and 04B0 is UTF-16, which is the pair the VarFileInfo block declares.
         BLOCK "040904B0"
         BEGIN
-            VALUE "FileDescription", "Dawn 1.7.2"
+            VALUE "FileDescription", "Dawn 1.7.3"
             VALUE "FileVersion", DAWN_VER_STRING
             VALUE "InternalName", "Dawn"
             // The shipped file carries the name the game delay-imports, not the module's own.

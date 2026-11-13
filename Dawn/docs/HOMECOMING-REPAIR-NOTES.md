@@ -1193,3 +1193,7 @@ and one bazaar Cabal alive for the rest of the mission. The door and the Hawk
 must stay unrequested for 50 simulated seconds while the player holds short, then
 follow the player's arrival. With the previous graph that route stalls at
 "Ikora's Cabal blasted". Homecoming Debug and Release each passed 304432 checks.
+
+Live check (2026-11-13): in a playthrough of the fix the bazaar door opened
+when the player reached it. Holliday's landing and the pickup were not
+separately confirmed.
