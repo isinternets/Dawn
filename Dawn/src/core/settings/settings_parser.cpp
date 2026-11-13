@@ -206,4 +206,18 @@ bool parse(std::string_view json, Settings& output) noexcept {
     return true;
 }
 
+/** Fills the character templates a settings file predates from the bundled defaults. */
+bool fill_missing_character_templates(Settings& settings, std::string_view bundled) noexcept {
+    if (settings.characterTemplates.characterCount != 0) {
+        return true;
+    }
+    // Static, because parse already holds one Settings on the stack and a second would risk it.
+    static Settings bundledSettings;
+    if (!parse(bundled, bundledSettings) || bundledSettings.characterTemplates.characterCount == 0) {
+        return false;
+    }
+    settings.characterTemplates = bundledSettings.characterTemplates;
+    return true;
+}
+
 } // namespace dawn::core::settings

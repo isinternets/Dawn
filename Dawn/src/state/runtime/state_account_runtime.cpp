@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "../../core/logging/log.h"
+#include "../../core/settings/settings.h"
 #include "../../middleware/datagen/family4/loadout/loadout_resolver.h"
 #include "../build_data/runtime.h"
 #include "runtime.h"
@@ -185,6 +186,234 @@ bool set_selected_character(std::uint64_t characterSoid, bool& changed) noexcept
     runtime::storage::g_state.account = candidate;
     ReleaseSRWLockExclusive(&runtime::storage::g_stateLock);
     changed = !alreadySelected;
+    return true;
+}
+
+namespace {
+
+/** Writes one character-creation outcome to the persistent diagnostic log. */
+void report_character_creation(std::string_view result,
+                               std::string_view reason,
+                               CharacterRace race,
+                               CharacterGender gender,
+                               CharacterClass characterClass,
+                               std::size_t index,
+                               std::uint64_t soid) noexcept {
+    std::array<char, core::log::kLineCapacity> line{};
+    const int count = std::snprintf(
+        line.data(),
+        line.size(),
+        "ev=account stage=create_character result=%.*s reason=%.*s class=%u race=%u gender=%u "
+        "index=%zu soid=0x%llX",
+        static_cast<int>(result.size()),
+        result.data(),
+        static_cast<int>(reason.size()),
+        reason.data(),
+        static_cast<unsigned>(characterClass),
+        static_cast<unsigned>(race),
+        static_cast<unsigned>(gender),
+        index,
+        static_cast<unsigned long long>(soid));
+    if (count > 0) {
+        core::log::write(core::log::Channel::state,
+                         result == "ok" ? core::log::Level::info : core::log::Level::warn,
+                         {line.data(), static_cast<std::size_t>(count)});
+    }
+}
+
+} // namespace
+
+/** Adds one character built from the authored template of the requested class. */
+bool create_character(CharacterRace race,
+                      CharacterGender gender,
+                      CharacterClass characterClass,
+                      std::uint64_t& characterSoid) noexcept {
+    characterSoid = 0;
+    const AccountState& templates = core::settings::get().characterTemplates;
+    const CharacterState* source = nullptr;
+    for (std::size_t index = 0;
+         index < templates.characterCount && index < templates.characters.size();
+         ++index) {
+        if (templates.characters[index].characterClass == characterClass) {
+            source = &templates.characters[index];
+            break;
+        }
+    }
+    if (source == nullptr) {
+        report_character_creation("fail", "no_template", race, gender, characterClass, 0, 0);
+        return false;
+    }
+
+    AcquireSRWLockExclusive(&runtime::storage::g_stateLock);
+    AccountState candidate = runtime::storage::g_state.account;
+    const std::size_t index = candidate.characterCount;
+    const auto refuse = [&](std::string_view reason) noexcept {
+        ReleaseSRWLockExclusive(&runtime::storage::g_stateLock);
+        report_character_creation("fail", reason, race, gender, characterClass, index, 0);
+        return false;
+    };
+    if (candidate.primarySoid == 0) {
+        return refuse("no_account");
+    }
+    if (index >= candidate.characters.size()) {
+        return refuse("no_free_slot");
+    }
+
+    // A character key follows the account key, which is also the form a later sign-on rebases to.
+    // A deleted character leaves its key free, and the others keep theirs, so the first free key of
+    // the sequence is the one to take.
+    std::uint64_t soid = 0;
+    for (std::size_t slot = 0; soid == 0 && slot < candidate.characters.size(); ++slot) {
+        const std::uint64_t key = candidate.primarySoid + 1U + slot;
+        if (!account_owns_soid(candidate, key)) {
+            soid = key;
+        }
+    }
+    if (soid == 0) {
+        return refuse("key_in_use");
+    }
+    CharacterState& created = candidate.characters[index];
+    created = *source;
+    created.soid = soid;
+    // A created character is selected as it is created: the Client leaves its sign-in step for the
+    // game once the account names a selection. Any earlier selection is released.
+    for (CharacterState& other : candidate.characters) {
+        other.selected = false;
+    }
+    created.selected = true;
+    created.race = race;
+    created.gender = gender;
+    // Items get fresh instances, so characters made from one template do not share them. The
+    // template's keys are cleared first so they cannot collide with the new ones.
+    for (std::optional<account::inventory::Item>& item : created.equipment.slots) {
+        if (item.has_value()) {
+            item->instanceSoid = 0;
+        }
+    }
+    for (std::size_t itemIndex = 0; itemIndex < created.inventory.count; ++itemIndex) {
+        created.inventory.values[itemIndex].instanceSoid = 0;
+    }
+    candidate.characterCount = index + 1;
+
+    std::uint32_t serial = 0;
+    for (std::optional<account::inventory::Item>& item : created.equipment.slots) {
+        if (!item.has_value()) {
+            continue;
+        }
+        std::uint64_t instanceSoid = 0;
+        if (!next_item_instance_soid(candidate, instanceSoid)) {
+            return refuse("item_key");
+        }
+        item->instanceSoid = instanceSoid;
+        item->mutationSerial = static_cast<std::int32_t>(serial++);
+    }
+    for (std::size_t itemIndex = 0; itemIndex < created.inventory.count; ++itemIndex) {
+        std::uint64_t instanceSoid = 0;
+        if (!next_item_instance_soid(candidate, instanceSoid)) {
+            return refuse("item_key");
+        }
+        created.inventory.values[itemIndex].instanceSoid = instanceSoid;
+        created.inventory.values[itemIndex].mutationSerial = static_cast<std::int32_t>(serial++);
+    }
+    created.nextInventorySerial = serial;
+
+    // A new character starts the New Light introduction, without weapons or travel gear, which is
+    // what the account load gives any character that has not started it.
+    if (!prepare_newlight_start(candidate)) {
+        return refuse("newlight");
+    }
+
+    if (!account::valid(candidate)) {
+        return refuse("invalid_account");
+    }
+    if (!persistence::commit_account(runtime::storage::g_state.account, candidate)) {
+        return refuse("commit");
+    }
+    if (!unlocks::append_character(core::settings::get().initialUnlocks, soid)) {
+        // The row is already durable, so take it back rather than leave the two views apart.
+        (void)persistence::commit_account(candidate, runtime::storage::g_state.account);
+        return refuse("unlocks");
+    }
+    // Publish only after the whole account is valid and durable.
+    runtime::storage::g_state.account = candidate;
+    ReleaseSRWLockExclusive(&runtime::storage::g_stateLock);
+    characterSoid = soid;
+    report_character_creation("ok", "created", race, gender, characterClass, index, soid);
+    return true;
+}
+
+namespace {
+
+/** Writes one character-deletion outcome to the persistent diagnostic log. */
+void report_character_deletion(std::string_view result,
+                               std::string_view reason,
+                               std::uint64_t soid,
+                               std::size_t remaining) noexcept {
+    std::array<char, core::log::kLineCapacity> line{};
+    const int count = std::snprintf(line.data(),
+                                    line.size(),
+                                    "ev=account stage=delete_character result=%.*s reason=%.*s "
+                                    "soid=0x%llX remaining=%zu",
+                                    static_cast<int>(result.size()),
+                                    result.data(),
+                                    static_cast<int>(reason.size()),
+                                    reason.data(),
+                                    static_cast<unsigned long long>(soid),
+                                    remaining);
+    if (count > 0) {
+        core::log::write(core::log::Channel::state,
+                         result == "ok" ? core::log::Level::info : core::log::Level::warn,
+                         {line.data(), static_cast<std::size_t>(count)});
+    }
+}
+
+} // namespace
+
+/** Removes one character and everything the account stored for it. */
+bool delete_character(std::uint64_t characterSoid) noexcept {
+    AcquireSRWLockExclusive(&runtime::storage::g_stateLock);
+    AccountState candidate = runtime::storage::g_state.account;
+    const auto refuse = [&](std::string_view reason) noexcept {
+        const std::size_t remaining = candidate.characterCount;
+        ReleaseSRWLockExclusive(&runtime::storage::g_stateLock);
+        report_character_deletion("fail", reason, characterSoid, remaining);
+        return false;
+    };
+    std::size_t doomed = candidate.characterCount;
+    for (std::size_t index = 0; index < candidate.characterCount; ++index) {
+        if (candidate.characters[index].soid == characterSoid) {
+            doomed = index;
+            break;
+        }
+    }
+    if (characterSoid == 0 || doomed == candidate.characterCount) {
+        return refuse("unknown");
+    }
+
+    // The characters after the removed one move up a slot and keep their keys. Nothing is renamed,
+    // so the Client's view of them, and every row stored under their keys, stays valid.
+    for (std::size_t index = doomed; index + 1U < candidate.characterCount; ++index) {
+        candidate.characters[index] = candidate.characters[index + 1U];
+    }
+    candidate.characters[candidate.characterCount - 1U] = CharacterState{};
+    --candidate.characterCount;
+
+    if (!account::valid(candidate)) {
+        return refuse("invalid_account");
+    }
+    if (!persistence::commit_character_removal(
+            runtime::storage::g_state.account, candidate, characterSoid)) {
+        return refuse("commit");
+    }
+    // The durable rows are gone, so the unlock table follows. It can only miss the character if the
+    // two views had already drifted, and there is nothing left to undo then.
+    const bool unlocksDropped = unlocks::remove_character(characterSoid);
+    // Publish only after the whole account is valid and durable.
+    runtime::storage::g_state.account = candidate;
+    const std::size_t remaining = candidate.characterCount;
+    ReleaseSRWLockExclusive(&runtime::storage::g_stateLock);
+    report_character_deletion(
+        "ok", unlocksDropped ? "deleted" : "deleted_no_unlocks", characterSoid, remaining);
     return true;
 }
 
@@ -509,6 +738,30 @@ AccountState account_snapshot() noexcept {
     const AccountState snapshot = runtime::storage::g_state.account;
     ReleaseSRWLockShared(&runtime::storage::g_stateLock);
     return snapshot;
+}
+
+/** Reads the account the family-zero banner is built from. */
+AccountState banner_account_snapshot() noexcept {
+    AccountState snapshot = account_snapshot();
+    const AccountState& templates = core::settings::get().characterTemplates;
+    if (snapshot.characterCount != 0 || snapshot.primarySoid == 0 || templates.characterCount == 0) {
+        return snapshot;
+    }
+    // The first free key of an empty account is the one the first created character is given.
+    CharacterState& standIn = snapshot.characters[0];
+    standIn = templates.characters[0];
+    standIn.soid = snapshot.primarySoid + 1U;
+    standIn.selected = false;
+    snapshot.characterCount = 1;
+    return snapshot;
+}
+
+/** @return How many characters the active account holds, read under the lock without a copy. */
+std::size_t account_character_count() noexcept {
+    AcquireSRWLockShared(&runtime::storage::g_stateLock);
+    const std::size_t count = runtime::storage::g_state.account.characterCount;
+    ReleaseSRWLockShared(&runtime::storage::g_stateLock);
+    return count;
 }
 
 /** Checks the current account snapshot once; the pure predicate validates the character id. */

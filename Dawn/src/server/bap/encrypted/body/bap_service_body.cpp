@@ -201,6 +201,7 @@ bool process(const ServiceRoute& route,
         }
         outcome.hasSubscription = webOutcome.hasSubscription;
         outcome.subscription = webOutcome.subscription;
+        outcome.rosterChanged = webOutcome.rosterChanged;
         const auto* equipmentSwap =
             web_service::mutation_if<state::PendingEquipmentSwap>(webOutcome);
         const auto* socketPlug = web_service::mutation_if<state::PendingSocketPlug>(webOutcome);

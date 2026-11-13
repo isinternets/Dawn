@@ -196,6 +196,7 @@ bool Parser::unlocks(state::unlocks::Table& output) noexcept {
  */
 bool Parser::state_settings(Settings& output) noexcept {
     output.initialAccount = {};
+    output.characterTemplates = {};
     output.initialUnlocks = {};
     output.initialFamily5 = {};
     output.initialActivityDefaults = state::activity::defaults::authored();
@@ -218,6 +219,10 @@ bool Parser::state_settings(Settings& output) noexcept {
             }
         } else if (key == "characters") {
             if (!characters(output.initialAccount)) {
+                return false;
+            }
+        } else if (key == "character_templates") {
+            if (!characters(output.characterTemplates)) {
                 return false;
             }
         } else if (key == "unlocks") {

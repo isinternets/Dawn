@@ -40,6 +40,11 @@ struct Settings {
     steam::Settings steam;
     /** Complete authored account State, or an empty account. */
     state::AccountState initialAccount;
+    /**
+     * Authored characters a create-character request is built from, one per class. Only the
+     * character rows are used. An account starts with none of them until the player creates one.
+     */
+    state::AccountState characterTemplates;
     /** Small local destination fallback published when State starts. */
     state::activity::defaults::ActivityDefaults initialActivityDefaults;
     /** Authored acquired-flag and objective policy published into the account object. */
@@ -58,6 +63,18 @@ struct Settings {
  * @return True when the document matches the supported settings.
  */
 [[nodiscard]] bool parse(std::string_view json, Settings& output) noexcept;
+
+/**
+ * Gives a settings file that predates character creation the templates it lacks.
+ * The updater keeps an existing settings file, and creating a character needs one template per
+ * class, so the bundled defaults stand in. A file that carries its own templates keeps them.
+ * Not thread safe: it is called once while the settings load.
+ * @param settings Parsed settings, whose templates are filled only when it has none.
+ * @param bundled Complete bundled default settings text.
+ * @return False when templates were needed and the bundled text does not provide them.
+ */
+[[nodiscard]] bool fill_missing_character_templates(Settings& settings,
+                                                    std::string_view bundled) noexcept;
 
 /**
  * Loads the settings file next to the module when it is there.

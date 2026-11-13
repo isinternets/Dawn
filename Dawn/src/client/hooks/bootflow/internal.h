@@ -75,6 +75,17 @@ struct OmegaSceneAuthorityObservation final {
 void uninstall_character_select_hold() noexcept;
 
 /**
+ * Asks for the character-select hold to be released at the next opportunity.
+ * A character created from the sign-in step is selected as it is created, and the step leaves for
+ * the game only once the hold is off. The release waits for the next request the Client makes, so
+ * the Client has already taken in the account that names its new selection.
+ */
+void request_character_select_release() noexcept;
+
+/** Releases the hold when one was requested. Cheap when none was, so every request may call it. */
+void apply_character_select_release() noexcept;
+
+/**
  * Attaches the profile-setup skip, which skips the startup setup screens.
  * @return True when the target is found and the detour attaches.
  */
